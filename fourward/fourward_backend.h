@@ -14,27 +14,31 @@
 
 // DataplaneValidationBackend implementation for 4ward.
 //
-// This backend is intentionally minimal: it only implements
-// GetEntitiesToPuntAllPackets (required for control switch setup). All other
-// methods return UNIMPLEMENTED — they are unreachable when using
-// packet_test_vector_override with specification_override set and failure
-// analysis disabled.
+// Provides hardcoded test packets (SynthesizePackets) and generates test
+// vectors with output predictions (GeneratePacketTestVectors) by running the
+// packets through a 4ward simulator instance via gRPC.
 
 #ifndef PINS_FOURWARD_FOURWARD_BACKEND_H_
 #define PINS_FOURWARD_FOURWARD_BACKEND_H_
+
+#include <string>
 
 #include "dvaas/dataplane_validation.h"
 
 namespace fourward {
 
-// Minimal DataplaneValidationBackend for 4ward integration.
+// DataplaneValidationBackend that uses hardcoded test packets and generates
+// output predictions by injecting them into a 4ward simulator instance.
 //
-// Only GetEntitiesToPuntAllPackets has a real implementation — it returns
-// SAI P4 ACL entries that punt all traffic. All other methods return
-// UNIMPLEMENTED since they're unreachable when using packet_test_vector_override
-// with failure analysis disabled.
+// The backend address identifies the 4ward instance used as the reference
+// model for output prediction. This should be the same instance as the SUT
+// (since 4ward IS the reference implementation), making this effectively a
+// self-consistency check.
 class FourwardBackend : public dvaas::DataplaneValidationBackend {
  public:
+  explicit FourwardBackend(std::string sut_address);
+
+  // Returns hardcoded test packets (no Z3/SMT synthesis).
   absl::StatusOr<dvaas::PacketSynthesisResult> SynthesizePackets(
       const pdpi::IrP4Info& ir_p4info, const pdpi::IrEntities& ir_entities,
       const p4::v1::ForwardingPipelineConfig& p4_symbolic_config,
@@ -42,12 +46,10 @@ class FourwardBackend : public dvaas::DataplaneValidationBackend {
       const dvaas::OutputWriterFunctionType& write_stats,
       const std::optional<p4_symbolic::packet_synthesizer::CoverageGoals>&
           coverage_goals_override,
-      std::optional<absl::Duration> time_limit) const override {
-    return absl::UnimplementedError(
-        "4ward backend does not support packet synthesis. "
-        "Use packet_test_vector_override instead.");
-  }
+      std::optional<absl::Duration> time_limit) const override;
 
+  // Tags synthesized packets with test IDs and generates output predictions
+  // by injecting each packet into the 4ward simulator via InjectPacket RPC.
   absl::StatusOr<dvaas::PacketTestVectorById> GeneratePacketTestVectors(
       const pdpi::IrP4Info& ir_p4info, const pdpi::IrEntities& ir_entities,
       const p4::v1::ForwardingPipelineConfig& bmv2_config,
@@ -55,14 +57,9 @@ class FourwardBackend : public dvaas::DataplaneValidationBackend {
       std::vector<p4_symbolic::packet_synthesizer::SynthesizedPacket>&
           synthesized_packets,
       const pins_test::P4rtPortId& default_ingress_port,
-      bool check_prediction_conformity) const override {
-    return absl::UnimplementedError(
-        "4ward backend does not support GeneratePacketTestVectors. "
-        "Use packet_test_vector_override instead.");
-  }
+      bool check_prediction_conformity) const override;
 
   // Returns SAI P4 ACL entries that punt all received packets.
-  // This is required to set up the control switch in a mirror testbed.
   absl::StatusOr<pdpi::IrEntities> GetEntitiesToPuntAllPackets(
       const pdpi::IrP4Info& switch_p4info) const override;
 
@@ -85,9 +82,11 @@ class FourwardBackend : public dvaas::DataplaneValidationBackend {
   absl::StatusOr<pdpi::IrEntities> CreateV1ModelAuxiliaryEntities(
       const pdpi::IrEntities& ir_entities, const pdpi::IrP4Info& ir_p4info,
       gnmi::gNMI::StubInterface& gnmi_stub) const override {
-    // Return empty entities — 4ward doesn't need v1model auxiliary tables.
     return pdpi::IrEntities();
   }
+
+ private:
+  std::string sut_address_;
 };
 
 }  // namespace fourward

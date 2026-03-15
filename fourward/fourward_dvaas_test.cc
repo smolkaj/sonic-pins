@@ -24,7 +24,9 @@
 // The test will:
 //   1. Create a FourwardMirrorTestbed backed by the two 4ward instances.
 //   2. Start a PacketBridge to emulate physical links between them.
-//   3. Run DVaaS validation with user-provided test vectors.
+//   3. Synthesize test packets (hardcoded), generate output predictions
+//      by injecting into the 4ward simulator, then compare predictions
+//      against actual SUT outputs.
 //   4. Assert that all tests pass.
 
 #include <memory>
@@ -34,13 +36,11 @@
 #include "absl/log/log.h"
 #include "absl/status/statusor.h"
 #include "dvaas/dataplane_validation.h"
-#include "dvaas/test_vector.pb.h"
 #include "fourward/fourward_backend.h"
 #include "fourward/fourward_switch.h"
 #include "fourward/packet_bridge.h"
 #include "gtest/gtest.h"
 #include "gutil/gutil/status_matchers.h"
-#include "gutil/gutil/testing.h"
 
 ABSL_FLAG(std::string, sut_address, "localhost:9559",
           "Address of the 4ward SUT P4RuntimeServer.");
@@ -55,33 +55,11 @@ namespace {
 
 using ::gutil::IsOk;
 
-// Builds a minimal test vector: an Ethernet frame sent on port 1, expected
-// to be forwarded to port 2 by the SAI P4 pipeline.
-dvaas::PacketTestVector BuildSimpleForwardingTestVector() {
-  // Minimal Ethernet frame with IPv4 payload.
-  // The hex encodes: dst_mac=ff:ff:ff:ff:ff:ff, src_mac=00:00:00:00:00:01,
-  // ethertype=0x0800, then a minimal IPv4 header + 4 bytes of payload tagged
-  // with test ID 1.
-  return gutil::ParseProtoOrDie<dvaas::PacketTestVector>(R"pb(
-    input {
-      type: DATAPLANE
-      packet {
-        port: "1"
-        hex: "ffffffffffff000000000001080045000018000100004011f96bc0a80001c0a800020000000000080001"
-      }
-    }
-    acceptable_outputs {
-      packets {
-        port: "2"
-        hex: "ffffffffffff000000000001080045000018000100003f11fa6bc0a80001c0a800020000000000080001"
-      }
-    }
-  )pb");
-}
-
 TEST(FourwardDvaasTest, UpstreamDvaasValidation) {
   // Create the DataplaneValidator with our 4ward backend.
-  auto backend = std::make_unique<FourwardBackend>();
+  // The backend uses the SUT address for output prediction via InjectPacket.
+  auto backend = std::make_unique<FourwardBackend>(
+      absl::GetFlag(FLAGS_sut_address));
   dvaas::DataplaneValidator validator(std::move(backend));
 
   // Create a MirrorTestbed backed by two 4ward instances.
@@ -98,8 +76,9 @@ TEST(FourwardDvaasTest, UpstreamDvaasValidation) {
   // Configure DVaaS params.
   dvaas::DataplaneValidationParams params;
 
-  // Use pre-computed test vectors (skip automated synthesis).
-  params.packet_test_vector_override = {BuildSimpleForwardingTestVector()};
+  // No packet_test_vector_override — the backend's SynthesizePackets and
+  // GeneratePacketTestVectors methods are exercised, including output
+  // prediction via 4ward's InjectPacket RPC.
 
   // Provide identity port map (SUT port X = control switch port X), skipping
   // the gNMI-based port mirroring that ValidateDataplane does by default.

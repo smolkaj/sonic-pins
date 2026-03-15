@@ -16,6 +16,7 @@
 
 load("@com_google_googleapis_imports//:imports.bzl", "cc_proto_library")
 load("@com_github_grpc_grpc//bazel:cc_grpc_library.bzl", "cc_grpc_library")
+load("@rules_proto//proto:defs.bzl", "proto_library")
 
 package(
     default_testonly = True,
@@ -87,7 +88,7 @@ cc_library(
         "//thinkit:test_environment",
         "@com_github_gnmi//proto/gnmi:gnmi_cc_grpc_proto",
         "@com_github_grpc_grpc//:grpc++",
-        "@com_github_p4lang_p4runtime//:p4runtime_cc_grpc_proto",
+        "@com_github_p4lang_p4runtime//:p4runtime_cc_grpc",
         "@com_google_absl//absl/log",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
@@ -110,18 +111,11 @@ cc_test(
         ":packet_bridge",
         "//dvaas:dataplane_validation",
         "//dvaas:test_vector_cc_proto",
-        "//gutil/gutil:proto",
-        "//gutil/gutil:status",
         "//gutil/gutil:status_matchers",
-        "//p4_infra/p4_pdpi:ir",
-        "//p4_infra/p4_pdpi:p4_runtime_session",
-        "@com_github_gnmi//proto/gnmi:gnmi_cc_grpc_proto",
-        "@com_github_grpc_grpc//:grpc++",
+        "//gutil/gutil:testing",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/log",
-        "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
-        "@com_google_absl//absl/strings",
         "@com_google_googletest//:gtest_main",
     ],
 )

@@ -44,7 +44,7 @@ absl::StatusOr<pdpi::IrEntities> FourwardBackend::GetEntitiesToPuntAllPackets(
   )pb";
 
   pdpi::IrEntities entities;
-  RETURN_IF_ERROR(gutil::ReadProto(kPuntAllEntities, &entities));
+  RETURN_IF_ERROR(gutil::ReadProtoFromString(kPuntAllEntities, &entities));
   return entities;
 }
 

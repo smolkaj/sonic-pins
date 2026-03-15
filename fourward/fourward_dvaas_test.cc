@@ -22,33 +22,25 @@
 //   2. Both instances should have no pipeline loaded (fresh start).
 //
 // The test will:
-//   1. Load the SAI P4 pipeline on both switches.
-//   2. Install L3 forwarding entries on the SUT.
-//   3. Install punt-all entries on the control switch.
-//   4. Start a PacketBridge between the two instances.
-//   5. Run DVaaS with user-provided test vectors.
-//   6. Assert that all tests pass.
+//   1. Create a FourwardMirrorTestbed backed by the two 4ward instances.
+//   2. Start a PacketBridge to emulate physical links between them.
+//   3. Run DVaaS validation with user-provided test vectors.
+//   4. Assert that all tests pass.
 
 #include <memory>
 #include <string>
-#include <vector>
 
 #include "absl/flags/flag.h"
 #include "absl/log/log.h"
-#include "absl/status/status.h"
 #include "absl/status/statusor.h"
-#include "absl/strings/str_cat.h"
 #include "dvaas/dataplane_validation.h"
 #include "dvaas/test_vector.pb.h"
 #include "fourward/fourward_backend.h"
 #include "fourward/fourward_switch.h"
 #include "fourward/packet_bridge.h"
 #include "gtest/gtest.h"
-#include "gutil/gutil/proto.h"
-#include "gutil/gutil/status.h"
 #include "gutil/gutil/status_matchers.h"
-#include "p4_infra/p4_pdpi/ir.h"
-#include "p4_infra/p4_pdpi/p4_runtime_session.h"
+#include "gutil/gutil/testing.h"
 
 ABSL_FLAG(std::string, sut_address, "localhost:9559",
           "Address of the 4ward SUT P4RuntimeServer.");
@@ -70,7 +62,7 @@ dvaas::PacketTestVector BuildSimpleForwardingTestVector() {
   // The hex encodes: dst_mac=ff:ff:ff:ff:ff:ff, src_mac=00:00:00:00:00:01,
   // ethertype=0x0800, then a minimal IPv4 header + 4 bytes of payload tagged
   // with test ID 1.
-  constexpr char kTestVectorTextProto[] = R"pb(
+  return gutil::ParseProtoOrDie<dvaas::PacketTestVector>(R"pb(
     input {
       type: DATAPLANE
       packet {
@@ -84,11 +76,7 @@ dvaas::PacketTestVector BuildSimpleForwardingTestVector() {
         hex: "ffffffffffff000000000001080045000018000100003f11fa6bc0a80001c0a800020000000000080001"
       }
     }
-  )pb";
-
-  dvaas::PacketTestVector test_vector;
-  CHECK(gutil::ReadProto(kTestVectorTextProto, &test_vector).ok());
-  return test_vector;
+  )pb");
 }
 
 TEST(FourwardDvaasTest, UpstreamDvaasValidation) {
@@ -96,36 +84,13 @@ TEST(FourwardDvaasTest, UpstreamDvaasValidation) {
   auto backend = std::make_unique<FourwardBackend>();
   dvaas::DataplaneValidator validator(std::move(backend));
 
-  // Create SwitchApi objects for SUT and control switch.
-  ASSERT_OK_AND_ASSIGN(
-      auto sut_session,
-      pdpi::P4RuntimeSession::Create(
-          absl::GetFlag(FLAGS_sut_address),
-          grpc::InsecureChannelCredentials(),
-          absl::GetFlag(FLAGS_sut_device_id)));
-  ASSERT_OK_AND_ASSIGN(
-      auto control_session,
-      pdpi::P4RuntimeSession::Create(
-          absl::GetFlag(FLAGS_control_address),
-          grpc::InsecureChannelCredentials(),
-          absl::GetFlag(FLAGS_control_device_id)));
+  // Create a MirrorTestbed backed by two 4ward instances.
+  FourwardMirrorTestbed testbed(
+      absl::GetFlag(FLAGS_sut_address), absl::GetFlag(FLAGS_sut_device_id),
+      absl::GetFlag(FLAGS_control_address),
+      absl::GetFlag(FLAGS_control_device_id));
 
-  // Create gNMI stubs (4ward's gNMI stub server handles Get requests).
-  auto sut_channel = grpc::CreateChannel(
-      absl::GetFlag(FLAGS_sut_address), grpc::InsecureChannelCredentials());
-  auto control_channel = grpc::CreateChannel(
-      absl::GetFlag(FLAGS_control_address), grpc::InsecureChannelCredentials());
-
-  dvaas::SwitchApi sut{
-      .p4rt = std::move(sut_session),
-      .gnmi = gnmi::gNMI::NewStub(sut_channel),
-  };
-  dvaas::SwitchApi control_switch{
-      .p4rt = std::move(control_session),
-      .gnmi = gnmi::gNMI::NewStub(control_channel),
-  };
-
-  // Start the PacketBridge to emulate physical links.
+  // Start the PacketBridge to emulate physical links between the two instances.
   PacketBridge bridge(absl::GetFlag(FLAGS_sut_address),
                       absl::GetFlag(FLAGS_control_address));
   ASSERT_THAT(bridge.Start(), IsOk());
@@ -136,7 +101,8 @@ TEST(FourwardDvaasTest, UpstreamDvaasValidation) {
   // Use pre-computed test vectors (skip automated synthesis).
   params.packet_test_vector_override = {BuildSimpleForwardingTestVector()};
 
-  // Provide identity port map (SUT port X = control switch port X).
+  // Provide identity port map (SUT port X = control switch port X), skipping
+  // the gNMI-based port mirroring that ValidateDataplane does by default.
   params.mirror_testbed_port_map_override =
       dvaas::MirrorTestbedP4rtPortIdMap::CreateIdentityMap();
 
@@ -150,13 +116,9 @@ TEST(FourwardDvaasTest, UpstreamDvaasValidation) {
   // TODO(4ward): Populate with real SAI P4 configs.
   params.specification_override = dvaas::P4Specification{};
 
-  // Create a test environment.
-  FourwardTestEnvironment env;
-
   // Run upstream DVaaS validation!
   LOG(INFO) << "Running upstream DVaaS validation against 4ward...";
-  auto result = validator.ValidateDataplaneUsingExistingSwitchApis(
-      sut, control_switch, env, params);
+  auto result = validator.ValidateDataplane(testbed, params);
 
   bridge.Stop();
   LOG(INFO) << "PacketBridge forwarded " << bridge.PacketsForwarded()

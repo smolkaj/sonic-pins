@@ -12,7 +12,11 @@ on:
 jobs:
   fourward-dvaas:
     name: DVaaS against 4ward
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
+    # Prevent rules_android from finding the pre-installed SDK on CI runners.
+    env:
+      ANDROID_HOME: ""
+      ANDROID_SDK_ROOT: ""
 
     steps:
     - name: Checkout sonic-pins

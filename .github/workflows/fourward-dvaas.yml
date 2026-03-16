@@ -89,11 +89,25 @@ jobs:
         mkdir -p /tmp/repo-cache
         bazel test //fourward:fourward_dvaas_test \
           --repository_cache=/tmp/repo-cache \
-          --test_output=all \
+          --test_output=streamed \
           --test_arg=--sut_address=localhost:9559 \
           --test_arg=--control_address=localhost:9560 \
           --test_arg=--sut_device_id=1 \
-          --test_arg=--control_device_id=2
+          --test_arg=--control_device_id=2 \
+        || true
+
+    - name: Print test log
+      if: always()
+      working-directory: sonic-pins
+      run: |
+        LOG=$(find "$(bazel info bazel-testlogs 2>/dev/null || echo .)" \
+              -name 'test.log' -path '*/fourward_dvaas_test/*' 2>/dev/null | head -1)
+        if [ -n "$LOG" ]; then
+          echo "=== Test log: $LOG ==="
+          cat "$LOG"
+        else
+          echo "No test.log found"
+        fi
 
     - name: Stop 4ward servers
       if: always()

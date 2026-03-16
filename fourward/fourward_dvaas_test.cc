@@ -137,7 +137,9 @@ TEST(FourwardDvaasTest, UpstreamDvaasValidation) {
 
   ASSERT_THAT(result.status(), IsOk())
       << "DVaaS validation failed: " << result.status().message();
-  LOG(INFO) << "DVaaS validation result: " << result->test_outcome_stats;
+  result->LogStatistics();
+  EXPECT_THAT(result->HasSuccessRateOfAtLeast(1.0), IsOk())
+      << "DVaaS validation found failures.";
 }
 
 }  // namespace

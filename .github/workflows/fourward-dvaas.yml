@@ -36,13 +36,11 @@ jobs:
       with:
         large-packages: false
 
-    - name: Install system dependencies (sonic-pins)
-      run: cd sonic-pins && ./install_dependencies.sh
-
-    # 4ward's BMv2 differential tests need libgmp; not needed for the server
-    # itself, but the build graph may pull it in.
-    - name: Install system dependencies (4ward)
-      run: sudo apt-get install -y libgmp-dev
+    # Install only what's actually needed. The full install_dependencies.sh is
+    # for the SONiC/thinkit stack and requires Ubuntu 22.04 packages; we only
+    # need libgmp for 4ward's p4c backend.
+    - name: Install system dependencies
+      run: sudo apt-get update && sudo apt-get install -y libgmp-dev
 
     - name: Install bazelisk
       run: |

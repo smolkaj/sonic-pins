@@ -57,8 +57,12 @@ absl::Status PacketBridge::Start() {
 void PacketBridge::Stop() {
   if (!running_.load()) return;
   running_.store(false);
-  // The forwarding threads will exit when the gRPC stream is cancelled
-  // (TryCancel is called from the reader side when running_ is false).
+  // Cancel active SubscribeResults streams to unblock Read().
+  {
+    std::lock_guard<std::mutex> lock(contexts_mu_);
+    if (sut_subscribe_ctx_) sut_subscribe_ctx_->TryCancel();
+    if (control_subscribe_ctx_) control_subscribe_ctx_->TryCancel();
+  }
   if (sut_to_control_.joinable()) sut_to_control_.join();
   if (control_to_sut_.joinable()) control_to_sut_.join();
   LOG(INFO) << "PacketBridge stopped. Total packets forwarded: "
@@ -79,6 +83,13 @@ void PacketBridge::ForwardLoop(const std::string& from_address,
 
   // Subscribe to SubscribeResults on the "from" instance.
   grpc::ClientContext subscribe_ctx;
+  {
+    std::lock_guard<std::mutex> lock(contexts_mu_);
+    if (from_address == sut_address_)
+      sut_subscribe_ctx_ = &subscribe_ctx;
+    else
+      control_subscribe_ctx_ = &subscribe_ctx;
+  }
   dataplane::SubscribeResultsRequest subscribe_request;
   auto reader = from_stub->SubscribeResults(&subscribe_ctx, subscribe_request);
 
@@ -119,12 +130,19 @@ void PacketBridge::ForwardLoop(const std::string& from_address,
     }
   }
 
+  // Deregister context before finishing.
+  {
+    std::lock_guard<std::mutex> lock(contexts_mu_);
+    if (from_address == sut_address_)
+      sut_subscribe_ctx_ = nullptr;
+    else
+      control_subscribe_ctx_ = nullptr;
+  }
   if (running_.load()) {
     auto status = reader->Finish();
     LOG(WARNING) << direction_label << ": subscription ended: "
                  << status.error_message();
   } else {
-    subscribe_ctx.TryCancel();
     reader->Finish();
     LOG(INFO) << direction_label << ": stopped";
   }

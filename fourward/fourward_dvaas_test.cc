@@ -14,26 +14,10 @@
 
 // End-to-end test: runs upstream DVaaS against two 4ward P4RuntimeServer
 // instances, connected by a PacketBridge.
-//
-// Prerequisites (from the 4ward repo):
-//   1. Compile SAI P4 middleblock:
-//      bazel run //cli:4ward -- compile sai_p4/middleblock.p4 -o /tmp/mb.txtpb
-//   2. Start two P4RuntimeServer instances with the pipeline pre-loaded:
-//      bazel run //p4runtime:p4runtime_server -- \
-//          --port=9559 --pipeline=/tmp/mb.txtpb &
-//      bazel run //p4runtime:p4runtime_server -- \
-//          --port=9560 --pipeline=/tmp/mb.txtpb &
-//
-// The test will:
-//   1. Install forwarding + punt entries on the SUT so test packets are
-//      forwarded (and copied to the controller for punt coverage).
-//   2. Start a PacketBridge to emulate physical links between SUT and control.
-//   3. Run upstream DVaaS: synthesize test packets, predict outputs via
-//      4ward's InjectPacket, inject into SUT via control switch, compare.
-//   4. Assert that all tests pass.
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "absl/flags/flag.h"
 #include "absl/log/log.h"
@@ -45,6 +29,8 @@
 #include "gtest/gtest.h"
 #include "gutil/gutil/status_matchers.h"
 #include "p4_infra/p4_pdpi/p4_runtime_session.h"
+#include "p4_infra/p4_pdpi/p4_runtime_session_extras.h"
+#include "p4_infra/p4_pdpi/pd.h"
 #include "sai_p4/instantiations/google/instantiations.h"
 #include "sai_p4/instantiations/google/sai_p4info.h"
 #include "sai_p4/instantiations/google/test_tools/test_entries.h"
@@ -67,7 +53,6 @@ TEST(FourwardDvaasTest, UpstreamDvaasValidation) {
       sai::GetIrP4Info(sai::Instantiation::kMiddleblock);
 
   // Create the DataplaneValidator with our 4ward backend.
-  // The backend uses the SUT address for output prediction via InjectPacket.
   auto backend = std::make_unique<FourwardBackend>(
       absl::GetFlag(FLAGS_sut_address));
   dvaas::DataplaneValidator validator(std::move(backend));
@@ -78,10 +63,7 @@ TEST(FourwardDvaasTest, UpstreamDvaasValidation) {
       absl::GetFlag(FLAGS_control_address),
       absl::GetFlag(FLAGS_control_device_id));
 
-  // Install forwarding and punt entries on the SUT. The forwarding entries
-  // route all IPv4 packets to port 2 (with MAC rewrite). The punt entry
-  // copies all packets to the controller, exercising both forwarding and
-  // punt paths. The session is destroyed before DVaaS creates its own.
+  // Install forwarding and punt entries on the SUT.
   {
     ASSERT_OK_AND_ASSIGN(
         auto sut_session,
@@ -94,6 +76,18 @@ TEST(FourwardDvaasTest, UpstreamDvaasValidation) {
     LOG(INFO) << "Installed forwarding + punt entries on SUT";
   }
 
+  // Smoke test: verify P4RT Read works before starting DVaaS.
+  {
+    ASSERT_OK_AND_ASSIGN(
+        auto sut_session,
+        pdpi::P4RuntimeSession::Create(testbed.Sut()));
+    auto entities = pdpi::ReadPiEntities(sut_session.get());
+    ASSERT_THAT(entities.status(), IsOk())
+        << "P4RT Read smoke test failed: " << entities.status().message();
+    LOG(INFO) << "Smoke test: Read " << entities->size()
+              << " entities from SUT";
+  }
+
   // Start the PacketBridge to emulate physical links between the two instances.
   PacketBridge bridge(absl::GetFlag(FLAGS_sut_address),
                       absl::GetFlag(FLAGS_control_address));
@@ -101,10 +95,6 @@ TEST(FourwardDvaasTest, UpstreamDvaasValidation) {
 
   // Configure DVaaS params.
   dvaas::DataplaneValidationParams params;
-
-  // No packet_test_vector_override — the backend's SynthesizePackets and
-  // GeneratePacketTestVectors methods are exercised, including output
-  // prediction via 4ward's InjectPacket RPC.
 
   // Provide identity port map (SUT port X = control switch port X), skipping
   // the gNMI-based port mirroring that ValidateDataplane does by default.
@@ -117,9 +107,7 @@ TEST(FourwardDvaasTest, UpstreamDvaasValidation) {
   params.failure_enhancement_options.max_number_of_failures_to_minimize = 0;
   params.reset_and_collect_counters = false;
 
-  // Populate the P4Specification with SAI P4 middleblock P4Info. Our backend
-  // doesn't use these configs (it uses hardcoded packets + InjectPacket for
-  // prediction), but GenerateTestVectors passes them through.
+  // Populate the P4Specification with SAI P4 middleblock P4Info.
   dvaas::P4Specification spec;
   *spec.p4_symbolic_config.mutable_p4info() =
       sai::GetP4Info(sai::Instantiation::kMiddleblock);

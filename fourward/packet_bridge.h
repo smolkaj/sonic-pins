@@ -29,6 +29,7 @@
 #define PINS_FOURWARD_PACKET_BRIDGE_H_
 
 #include <atomic>
+#include <mutex>
 #include <memory>
 #include <string>
 #include <thread>
@@ -36,6 +37,7 @@
 #include "absl/status/status.h"
 #include "absl/strings/string_view.h"
 #include "grpcpp/channel.h"
+#include "grpcpp/client_context.h"
 
 namespace fourward {
 
@@ -76,6 +78,12 @@ class PacketBridge {
   std::atomic<int64_t> packets_forwarded_{0};
   std::thread sut_to_control_;
   std::thread control_to_sut_;
+
+  // ClientContext pointers for active SubscribeResults streams.
+  // Stop() calls TryCancel() on these to unblock Read().
+  std::mutex contexts_mu_;
+  grpc::ClientContext* sut_subscribe_ctx_ = nullptr;
+  grpc::ClientContext* control_subscribe_ctx_ = nullptr;
 };
 
 }  // namespace fourward

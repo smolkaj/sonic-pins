@@ -110,6 +110,8 @@ cc_library(
 cc_test(
     name = "fourward_dvaas_test",
     srcs = ["fourward_dvaas_test.cc"],
+    # Static linking avoids abseil ODR violations across shared libraries.
+    linkstatic = True,
     tags = [
         # Requires two external 4ward P4RuntimeServer instances.
         "manual",
@@ -122,6 +124,8 @@ cc_test(
         "//dvaas:dataplane_validation",
         "//gutil/gutil:status_matchers",
         "//p4_infra/p4_pdpi:p4_runtime_session",
+        "//p4_infra/p4_pdpi:p4_runtime_session_extras",
+        "//p4_infra/p4_pdpi:pd",
         "//sai_p4/instantiations/google:instantiations",
         "//sai_p4/instantiations/google:sai_p4info_cc",
         "//sai_p4/instantiations/google/test_tools:test_entries",
@@ -129,5 +133,51 @@ cc_test(
         "@com_google_absl//absl/log",
         "@com_google_absl//absl/status:statusor",
         "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_binary(
+    name = "gnmi_diag",
+    srcs = ["gnmi_diag.cc"],
+    deps = [
+        "//lib/gnmi:gnmi_helper",
+        "@com_github_gnmi//proto/gnmi:gnmi_cc_grpc_proto",
+        "@com_github_grpc_grpc//:grpc++",
+        "@com_google_absl//absl/flags:flag",
+        "@com_google_absl//absl/flags:parse",
+        "@com_google_absl//absl/log",
+    ],
+)
+
+cc_test(
+    name = "dvaas_step_test",
+    srcs = ["dvaas_step_test.cc"],
+    linkstatic = True,
+    tags = ["manual", "external"],
+    deps = [
+        ":fourward_backend",
+        ":fourward_switch",
+        "//dvaas:dataplane_validation",
+        "//gutil/gutil:status_matchers",
+        "//p4_infra/p4_pdpi:p4_runtime_session",
+        "//p4_infra/p4_pdpi:p4_runtime_session_extras",
+        "//p4_infra/p4_pdpi:pd",
+        "//sai_p4/instantiations/google:instantiations",
+        "//sai_p4/instantiations/google:sai_p4info_cc",
+        "//sai_p4/instantiations/google/test_tools:test_entries",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_binary(
+    name = "inject_test",
+    srcs = ["inject_test.cc"],
+    deps = [
+        ":dataplane_cc_grpc_proto",
+        ":dataplane_cc_proto",
+        "@com_github_grpc_grpc//:grpc++",
+        "@com_google_absl//absl/log",
     ],
 )

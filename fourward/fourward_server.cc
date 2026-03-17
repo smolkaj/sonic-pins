@@ -210,6 +210,14 @@ absl::StatusOr<FourwardServer> FourwardServer::Start(Options options) {
     std::string device_id_flag =
         absl::StrFormat("--device-id=%d", options.device_id);
 
+    // Clear Bazel runfiles env vars so the child process finds its own
+    // runfiles rather than inheriting the test sandbox's paths.
+    unsetenv("RUNFILES_DIR");
+    unsetenv("RUNFILES_MANIFEST_FILE");
+    unsetenv("RUNFILES_MANIFEST_ONLY");
+    unsetenv("JAVA_RUNFILES");
+    unsetenv("TEST_SRCDIR");
+
     std::vector<const char*> argv = {
         options.binary_path.c_str(),
         port_flag.c_str(),

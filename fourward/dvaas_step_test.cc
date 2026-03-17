@@ -6,8 +6,9 @@
 #include "absl/log/log.h"
 #include "absl/status/statusor.h"
 #include "dvaas/dataplane_validation.h"
-#include "fourward/fourward_backend.h"
-#include "fourward/fourward_switch.h"
+#include "fourward/fake_gnmi_service.h"
+#include "fourward/fourward_dataplane_validation_backend.h"
+#include "fourward/fourward_mirror_testbed.h"
 #include "gtest/gtest.h"
 #include "gutil/gutil/status_matchers.h"
 #include "gutil/gutil/version.h"
@@ -27,8 +28,13 @@ using ::gutil::IsOk;
 TEST(FourwardDvaasTest, ValidateDataplaneSteps) {
   const auto& ir_p4info = sai::GetIrP4Info(sai::Instantiation::kMiddleblock);
 
+  // Start fake gNMI servers for DVaaS port discovery.
+  FakeGnmiServer sut_fake_gnmi;
+  FakeGnmiServer control_fake_gnmi;
+
   FourwardMirrorTestbed testbed(
-      "localhost:9559", 1, "localhost:9560", 2);
+      "localhost:9559", 1, sut_fake_gnmi.address,
+      "localhost:9560", 2, control_fake_gnmi.address);
 
   // Step 1: Install entries on SUT
   LOG(INFO) << "=== Step 1: Install entries on SUT ===";
@@ -76,7 +82,7 @@ TEST(FourwardDvaasTest, ValidateDataplaneSteps) {
   // Step 7: Install punt entries on control switch
   LOG(INFO) << "=== Step 7: Install punt entries ===";
   {
-    auto backend = std::make_unique<FourwardBackend>("localhost:9559");
+    auto backend = std::make_unique<FourwardDataplaneValidationBackend>("localhost:9559");
     ASSERT_OK_AND_ASSIGN(auto punt, backend->GetEntitiesToPuntAllPackets(ir_info));
     LOG(INFO) << "  Got " << punt.entities_size() << " punt entries";
     ASSERT_OK(pdpi::InstallIrEntities(*ctrl_p4rt, punt));
@@ -85,7 +91,7 @@ TEST(FourwardDvaasTest, ValidateDataplaneSteps) {
 
   // Step 8: GenerateTestVectors (the expensive part)
   LOG(INFO) << "=== Step 8: Create validator and generate test vectors ===";
-  auto backend = std::make_unique<FourwardBackend>("localhost:9559");
+  auto backend = std::make_unique<FourwardDataplaneValidationBackend>("localhost:9559");
 
   dvaas::DataplaneValidationParams params;
   params.mirror_testbed_port_map_override =

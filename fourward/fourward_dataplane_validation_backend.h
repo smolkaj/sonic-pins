@@ -34,9 +34,9 @@ namespace fourward {
 // model for output prediction. This should be the same instance as the SUT
 // (since 4ward IS the reference implementation), making this effectively a
 // self-consistency check.
-class FourwardBackend : public dvaas::DataplaneValidationBackend {
+class FourwardDataplaneValidationBackend : public dvaas::DataplaneValidationBackend {
  public:
-  explicit FourwardBackend(std::string sut_address);
+  explicit FourwardDataplaneValidationBackend(std::string sut_address);
 
   // Returns hardcoded test packets (no Z3/SMT synthesis).
   absl::StatusOr<dvaas::PacketSynthesisResult> SynthesizePackets(

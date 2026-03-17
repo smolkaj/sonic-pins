@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "fourward/fourward_backend.h"
+#include "fourward/fourward_dataplane_validation_backend.h"
 
 #include <string>
 #include <vector>
@@ -40,10 +40,10 @@
 
 namespace fourward {
 
-FourwardBackend::FourwardBackend(std::string sut_address)
+FourwardDataplaneValidationBackend::FourwardDataplaneValidationBackend(std::string sut_address)
     : sut_address_(std::move(sut_address)) {}
 
-absl::StatusOr<dvaas::PacketSynthesisResult> FourwardBackend::SynthesizePackets(
+absl::StatusOr<dvaas::PacketSynthesisResult> FourwardDataplaneValidationBackend::SynthesizePackets(
     const pdpi::IrP4Info& ir_p4info, const pdpi::IrEntities& ir_entities,
     const p4::v1::ForwardingPipelineConfig& p4_symbolic_config,
     absl::Span<const pins_test::P4rtPortId> ports,
@@ -104,7 +104,7 @@ absl::StatusOr<dvaas::PacketSynthesisResult> FourwardBackend::SynthesizePackets(
 }
 
 absl::StatusOr<dvaas::PacketTestVectorById>
-FourwardBackend::GeneratePacketTestVectors(
+FourwardDataplaneValidationBackend::GeneratePacketTestVectors(
     const pdpi::IrP4Info& ir_p4info, const pdpi::IrEntities& ir_entities,
     const p4::v1::ForwardingPipelineConfig& bmv2_config,
     absl::Span<const pins_test::P4rtPortId> ports,
@@ -199,7 +199,7 @@ FourwardBackend::GeneratePacketTestVectors(
   return test_vectors;
 }
 
-absl::StatusOr<pdpi::IrEntities> FourwardBackend::GetEntitiesToPuntAllPackets(
+absl::StatusOr<pdpi::IrEntities> FourwardDataplaneValidationBackend::GetEntitiesToPuntAllPackets(
     const pdpi::IrP4Info& switch_p4info) const {
   // SAI P4 ACL entry that matches all packets and punts them to the controller.
   constexpr char kPuntAllEntities[] = R"pb(

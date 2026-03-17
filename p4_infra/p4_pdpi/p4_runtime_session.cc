@@ -688,7 +688,10 @@ absl::Status ClearEntities(
   LOG(INFO) << absl::StrFormat("Amount of time taken to clear entities: %s",
                                absl::StrCat(absl::Now() - start_time));
 
+  LOG(INFO) << "ClearEntities: status.ok() = " << status.ok()
+            << ", raw rep = " << (void*)(*(uintptr_t*)&status);
   if (!status.ok()) {
+    LOG(ERROR) << "ClearEntities: status = " << status.ToString();
     if (execute_on_failure != nullptr) {
       RETURN_IF_ERROR(execute_on_failure(entities))
           << "failed to delete entities and execute user-provided callback "
@@ -701,7 +704,10 @@ absl::Status ClearEntities(
   }
 
   // Verify that all entities were cleared successfully.
-  RETURN_IF_ERROR(CheckNoEntities(session)).SetPrepend()
+  LOG(INFO) << "ClearEntities: checking for remaining entities...";
+  auto check_result = CheckNoEntities(session);
+  LOG(INFO) << "ClearEntities: CheckNoEntities returned: " << check_result.ToString();
+  RETURN_IF_ERROR(check_result).SetPrepend()
       << "cleared all entities: ";
 
   return absl::OkStatus();

@@ -133,6 +133,8 @@ FourwardBackend::GeneratePacketTestVectors(
     packetlib::Packet parsed = packetlib::ParsePacket(synthesized.packet());
     parsed.set_payload(dvaas::MakeTestPacketTagFromUniqueId(
         test_id, "4ward hardcoded test"));
+    // Recompute length/checksum fields after changing the payload.
+    RETURN_IF_ERROR(packetlib::UpdateAllComputedFields(parsed).status());
     ASSIGN_OR_RETURN(std::string tagged_packet,
                      packetlib::SerializePacket(parsed));
 

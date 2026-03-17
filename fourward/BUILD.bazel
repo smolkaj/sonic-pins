@@ -105,6 +105,22 @@ cc_library(
     ],
 )
 
+# -- 4ward server subprocess manager -------------------------------------------
+
+cc_library(
+    name = "fourward_server",
+    srcs = ["fourward_server.cc"],
+    hdrs = ["fourward_server.h"],
+    deps = [
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
+        "@com_google_absl//absl/time",
+    ],
+)
+
 # -- Integration test ----------------------------------------------------------
 
 cc_test(
@@ -113,13 +129,15 @@ cc_test(
     # Static linking avoids abseil ODR violations across shared libraries.
     linkstatic = True,
     tags = [
-        # Requires two external 4ward P4RuntimeServer instances.
+        # Requires --server_binary and --pipeline flags.
         "manual",
         "external",
     ],
     deps = [
         ":fourward_backend",
+        ":fourward_server",
         ":fourward_switch",
+        ":fake_gnmi_service",
         ":packet_bridge",
         "//dvaas:dataplane_validation",
         "//gutil/gutil:status_matchers",
@@ -130,9 +148,10 @@ cc_test(
         "//sai_p4/instantiations/google:sai_p4info_cc",
         "//sai_p4/instantiations/google/test_tools:test_entries",
         "@com_google_absl//absl/flags:flag",
+        "@com_google_absl//absl/flags:parse",
         "@com_google_absl//absl/log",
         "@com_google_absl//absl/status:statusor",
-        "@com_google_googletest//:gtest_main",
+        "@com_google_googletest//:gtest",
     ],
 )
 
@@ -157,6 +176,7 @@ cc_test(
     deps = [
         ":fourward_backend",
         ":fourward_switch",
+        ":fake_gnmi_service",
         "//dvaas:dataplane_validation",
         "//gutil/gutil:status_matchers",
         "//p4_infra/p4_pdpi:p4_runtime_session",
@@ -179,5 +199,31 @@ cc_binary(
         ":dataplane_cc_proto",
         "@com_github_grpc_grpc//:grpc++",
         "@com_google_absl//absl/log",
+    ],
+)
+
+cc_test(
+    name = "load_pipeline_test",
+    srcs = ["load_pipeline_test.cc"],
+    linkstatic = True,
+    tags = ["manual", "external"],
+    deps = [
+        "@com_github_grpc_grpc//:grpc++",
+        "@com_github_p4lang_p4runtime//:p4runtime_cc_proto",
+        "@com_github_p4lang_p4runtime//:p4runtime_cc_grpc",
+        "@com_google_absl//absl/log",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+# -- Fake gNMI service for DVaaS port discovery --------------------------------
+
+cc_library(
+    name = "fake_gnmi_service",
+    hdrs = ["fake_gnmi_service.h"],
+    deps = [
+        "@com_github_gnmi//proto/gnmi:gnmi_cc_grpc_proto",
+        "@com_github_grpc_grpc//:grpc++",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
     ],
 )

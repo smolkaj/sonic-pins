@@ -22,6 +22,7 @@
 #include <memory>
 #include <string>
 
+#include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
@@ -37,31 +38,37 @@
 namespace fourward {
 
 // A thinkit::Switch backed by a 4ward P4RuntimeServer on localhost.
+// P4Runtime and gNMI may be served on different addresses (4ward serves P4RT;
+// a FakeGnmiServer serves gNMI).
 class FourwardSwitch : public thinkit::Switch {
  public:
-  FourwardSwitch(std::string address, uint32_t device_id)
-      : address_(std::move(address)), device_id_(device_id) {}
+  FourwardSwitch(std::string p4rt_address, uint32_t device_id,
+                 std::string gnmi_address)
+      : p4rt_address_(std::move(p4rt_address)),
+        device_id_(device_id),
+        gnmi_address_(std::move(gnmi_address)) {}
 
-  const std::string& ChassisName() override { return address_; }
+  const std::string& ChassisName() override { return p4rt_address_; }
   uint32_t DeviceId() override { return device_id_; }
 
   absl::StatusOr<std::unique_ptr<p4::v1::P4Runtime::StubInterface>>
   CreateP4RuntimeStub() override {
-    auto channel = grpc::CreateChannel(address_,
+    auto channel = grpc::CreateChannel(p4rt_address_,
                                        grpc::InsecureChannelCredentials());
     return p4::v1::P4Runtime::NewStub(channel);
   }
 
   absl::StatusOr<std::unique_ptr<gnmi::gNMI::StubInterface>>
   CreateGnmiStub() override {
-    auto channel = grpc::CreateChannel(address_,
+    auto channel = grpc::CreateChannel(gnmi_address_,
                                        grpc::InsecureChannelCredentials());
     return gnmi::gNMI::NewStub(channel);
   }
 
  private:
-  std::string address_;
+  std::string p4rt_address_;
   uint32_t device_id_;
+  std::string gnmi_address_;
 };
 
 // Minimal thinkit::TestEnvironment that writes artifacts to /tmp.
@@ -69,7 +76,6 @@ class FourwardTestEnvironment : public thinkit::TestEnvironment {
  public:
   absl::Status StoreTestArtifact(absl::string_view filename,
                                  absl::string_view contents) override {
-    // Log for visibility; a real implementation would write to disk.
     LOG(INFO) << "Test artifact '" << filename << "': " << contents.size()
               << " bytes";
     return absl::OkStatus();
@@ -83,14 +89,19 @@ class FourwardTestEnvironment : public thinkit::TestEnvironment {
   bool MaskKnownFailures() override { return false; }
 };
 
-// A thinkit::MirrorTestbed with two 4ward P4RuntimeServer instances.
+// A thinkit::MirrorTestbed with two 4ward P4RuntimeServer instances and
+// in-process fake gNMI servers.
 class FourwardMirrorTestbed : public thinkit::MirrorTestbed {
  public:
-  FourwardMirrorTestbed(std::string sut_address, uint32_t sut_device_id,
-                        std::string control_address,
-                        uint32_t control_device_id)
-      : sut_(std::move(sut_address), sut_device_id),
-        control_(std::move(control_address), control_device_id) {}
+  FourwardMirrorTestbed(std::string sut_p4rt_address, uint32_t sut_device_id,
+                        std::string sut_gnmi_address,
+                        std::string control_p4rt_address,
+                        uint32_t control_device_id,
+                        std::string control_gnmi_address)
+      : sut_(std::move(sut_p4rt_address), sut_device_id,
+             std::move(sut_gnmi_address)),
+        control_(std::move(control_p4rt_address), control_device_id,
+                 std::move(control_gnmi_address)) {}
 
   thinkit::Switch& Sut() override { return sut_; }
   thinkit::Switch& ControlSwitch() override { return control_; }

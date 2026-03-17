@@ -21,30 +21,23 @@
 // only external dependency is the 4ward server binary, provided as a flag
 // (will become a Bazel data dep).
 
-#include <fstream>
 #include <memory>
 #include <string>
 
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
 #include "absl/log/log.h"
-#include "absl/status/status.h"
-#include "absl/status/statusor.h"
 #include "dvaas/dataplane_validation.h"
 #include "fourward/fake_gnmi_service.h"
 #include "fourward/fourward_dataplane_validation_backend.h"
 #include "fourward/fourward_server.h"
 #include "fourward/fourward_mirror_testbed.h"
 #include "fourward/packet_bridge.h"
-#include "grpcpp/create_channel.h"
-#include "grpcpp/security/credentials.h"
 #include "gtest/gtest.h"
+#include "grpcpp/security/credentials.h"
+#include "gutil/gutil/io.h"
 #include "gutil/gutil/status_matchers.h"
-#include "p4/v1/p4runtime.grpc.pb.h"
-#include "p4/v1/p4runtime.pb.h"
 #include "p4_infra/p4_pdpi/p4_runtime_session.h"
-#include "p4_infra/p4_pdpi/p4_runtime_session_extras.h"
-#include "p4_infra/p4_pdpi/pd.h"
 #include "sai_p4/instantiations/google/instantiations.h"
 #include "sai_p4/instantiations/google/sai_p4info.h"
 #include "sai_p4/instantiations/google/test_tools/test_entries.h"
@@ -58,32 +51,6 @@ namespace fourward {
 namespace {
 
 using ::gutil::IsOk;
-
-// Loads a ForwardingPipelineConfig onto a 4ward server via P4Runtime.
-absl::Status LoadPipeline(const std::string& address, uint32_t device_id,
-                          const p4::v1::ForwardingPipelineConfig& fpc) {
-  auto channel =
-      grpc::CreateChannel(address, grpc::InsecureChannelCredentials());
-  auto stub = p4::v1::P4Runtime::NewStub(channel);
-
-  p4::v1::SetForwardingPipelineConfigRequest req;
-  req.set_device_id(device_id);
-  req.set_action(
-      p4::v1::SetForwardingPipelineConfigRequest::VERIFY_AND_COMMIT);
-  *req.mutable_config() = fpc;
-
-  grpc::ClientContext ctx;
-  p4::v1::SetForwardingPipelineConfigResponse resp;
-  auto status = stub->SetForwardingPipelineConfig(&ctx, req, &resp);
-  if (!status.ok()) {
-    return absl::InternalError(absl::StrCat(
-        "SetForwardingPipelineConfig failed on ", address, ": ",
-        status.error_message()));
-  }
-  LOG(INFO) << "Pipeline loaded on " << address << " (device " << device_id
-            << ")";
-  return absl::OkStatus();
-}
 
 TEST(FourwardDvaasTest, UpstreamDvaasValidation) {
   std::string binary = absl::GetFlag(FLAGS_server_binary);
@@ -112,21 +79,35 @@ TEST(FourwardDvaasTest, UpstreamDvaasValidation) {
             << " (device " << control_server.DeviceId() << ")";
 
   // Load the compiled ForwardingPipelineConfig binary proto.
-  std::ifstream in(pipeline_path, std::ios::binary);
-  ASSERT_TRUE(in.good()) << "Cannot open pipeline: " << pipeline_path;
-  std::string bytes((std::istreambuf_iterator<char>(in)),
-                     std::istreambuf_iterator<char>());
+  ASSERT_OK_AND_ASSIGN(std::string bytes, gutil::ReadFile(pipeline_path));
   p4::v1::ForwardingPipelineConfig fpc;
   ASSERT_TRUE(fpc.ParseFromString(bytes)) << "Failed to parse pipeline";
   LOG(INFO) << "Pipeline: " << fpc.p4info().tables_size() << " tables, "
             << fpc.p4_device_config().size() << " bytes device config";
 
-  // Load pipeline onto both servers.
-  ASSERT_THAT(
-      LoadPipeline(sut_server.Address(), sut_server.DeviceId(), fpc), IsOk());
-  ASSERT_THAT(
-      LoadPipeline(control_server.Address(), control_server.DeviceId(), fpc),
-      IsOk());
+  // Load pipeline onto both servers via P4Runtime sessions.
+  {
+    ASSERT_OK_AND_ASSIGN(
+        auto session,
+        pdpi::P4RuntimeSession::Create(
+            sut_server.Address(), grpc::InsecureChannelCredentials(),
+            sut_server.DeviceId()));
+    ASSERT_OK(pdpi::SetMetadataAndSetForwardingPipelineConfig(
+        session.get(),
+        p4::v1::SetForwardingPipelineConfigRequest::VERIFY_AND_COMMIT, fpc));
+    LOG(INFO) << "Pipeline loaded on SUT";
+  }
+  {
+    ASSERT_OK_AND_ASSIGN(
+        auto session,
+        pdpi::P4RuntimeSession::Create(
+            control_server.Address(), grpc::InsecureChannelCredentials(),
+            control_server.DeviceId()));
+    ASSERT_OK(pdpi::SetMetadataAndSetForwardingPipelineConfig(
+        session.get(),
+        p4::v1::SetForwardingPipelineConfigRequest::VERIFY_AND_COMMIT, fpc));
+    LOG(INFO) << "Pipeline loaded on control switch";
+  }
 
   const auto& ir_p4info =
       sai::GetIrP4Info(sai::Instantiation::kMiddleblock);

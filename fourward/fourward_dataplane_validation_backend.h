@@ -18,8 +18,8 @@
 // vectors with output predictions (GeneratePacketTestVectors) by running the
 // packets through a 4ward simulator instance via gRPC.
 
-#ifndef PINS_FOURWARD_FOURWARD_BACKEND_H_
-#define PINS_FOURWARD_FOURWARD_BACKEND_H_
+#ifndef PINS_FOURWARD_FOURWARD_DATAPLANE_VALIDATION_BACKEND_H_
+#define PINS_FOURWARD_FOURWARD_DATAPLANE_VALIDATION_BACKEND_H_
 
 #include <string>
 
@@ -91,4 +91,4 @@ class FourwardDataplaneValidationBackend : public dvaas::DataplaneValidationBack
 
 }  // namespace fourward
 
-#endif  // PINS_FOURWARD_FOURWARD_BACKEND_H_
+#endif  // PINS_FOURWARD_FOURWARD_DATAPLANE_VALIDATION_BACKEND_H_

@@ -19,7 +19,6 @@
 
 #include "absl/log/log.h"
 #include "absl/status/status.h"
-#include "absl/synchronization/notification.h"
 #include "fourward/dataplane.grpc.pb.h"
 #include "fourward/dataplane.pb.h"
 #include "grpcpp/channel.h"

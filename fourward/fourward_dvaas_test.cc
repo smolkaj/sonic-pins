@@ -32,9 +32,9 @@
 #include "absl/status/statusor.h"
 #include "dvaas/dataplane_validation.h"
 #include "fourward/fake_gnmi_service.h"
-#include "fourward/fourward_backend.h"
+#include "fourward/fourward_dataplane_validation_backend.h"
 #include "fourward/fourward_server.h"
-#include "fourward/fourward_switch.h"
+#include "fourward/fourward_mirror_testbed.h"
 #include "fourward/packet_bridge.h"
 #include "grpcpp/create_channel.h"
 #include "grpcpp/security/credentials.h"
@@ -111,7 +111,7 @@ TEST(FourwardDvaasTest, UpstreamDvaasValidation) {
   LOG(INFO) << "Control: " << control_server.Address()
             << " (device " << control_server.DeviceId() << ")";
 
-  // Load the compiled pipeline.
+  // Load the compiled ForwardingPipelineConfig binary proto.
   std::ifstream in(pipeline_path, std::ios::binary);
   ASSERT_TRUE(in.good()) << "Cannot open pipeline: " << pipeline_path;
   std::string bytes((std::istreambuf_iterator<char>(in)),
@@ -139,7 +139,7 @@ TEST(FourwardDvaasTest, UpstreamDvaasValidation) {
 
   // Create the DataplaneValidator with our 4ward backend.
   auto backend =
-      std::make_unique<FourwardBackend>(sut_server.Address());
+      std::make_unique<FourwardDataplaneValidationBackend>(sut_server.Address());
   dvaas::DataplaneValidator validator(std::move(backend));
 
   // Create a MirrorTestbed backed by two 4ward instances + fake gNMI.

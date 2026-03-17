@@ -148,7 +148,7 @@ FourwardDataplaneValidationBackend::GeneratePacketTestVectors(
     auto* input_packet = input->mutable_packet();
     input_packet->set_port(ingress_port);
     input_packet->set_hex(absl::BytesToHexString(tagged_packet));
-    *input_packet->mutable_parsed() = packetlib::ParsePacket(tagged_packet);
+    *input_packet->mutable_parsed() = parsed;
 
     // Generate output prediction by injecting into 4ward simulator.
     dataplane::InjectPacketRequest inject_request;
@@ -176,10 +176,9 @@ FourwardDataplaneValidationBackend::GeneratePacketTestVectors(
     for (const auto& out_pkt : inject_response.output_packets()) {
       auto* predicted = output->add_packets();
       predicted->set_port(absl::StrCat(out_pkt.egress_port()));
-      std::string out_bytes(out_pkt.payload().begin(),
-                            out_pkt.payload().end());
-      predicted->set_hex(absl::BytesToHexString(out_bytes));
-      *predicted->mutable_parsed() = packetlib::ParsePacket(out_bytes);
+      const std::string& out_payload = out_pkt.payload();
+      predicted->set_hex(absl::BytesToHexString(out_payload));
+      *predicted->mutable_parsed() = packetlib::ParsePacket(out_payload);
     }
 
     // If no output packets, this is a predicted drop.

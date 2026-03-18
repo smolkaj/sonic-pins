@@ -203,8 +203,8 @@ FourwardDataplaneValidationBackend::GeneratePacketTestVectors(
 
     LOG(INFO) << "Test #" << test_id << ": predicted "
               << inject_response.output_packets().size() << " output(s)";
-    LOG(INFO) << "Test vector #" << test_id << ":\n"
-              << gutil::PrintTextProto(test_vector);
+    VLOG(1) << "Test vector #" << test_id << ":\n"
+             << gutil::PrintTextProto(test_vector);
 
     test_vectors[test_id] = std::move(test_vector);
   }

@@ -87,27 +87,16 @@ TEST(FourwardDvaasTest, UpstreamDvaasValidation) {
             << fpc.p4_device_config().size() << " bytes device config";
 
   // Load pipeline onto both servers via P4Runtime sessions.
-  {
+  for (auto* server : {&sut_server, &control_server}) {
     ASSERT_OK_AND_ASSIGN(
         auto session,
         pdpi::P4RuntimeSession::Create(
-            sut_server.Address(), grpc::InsecureChannelCredentials(),
-            sut_server.DeviceId()));
+            server->Address(), grpc::InsecureChannelCredentials(),
+            server->DeviceId()));
     ASSERT_OK(pdpi::SetMetadataAndSetForwardingPipelineConfig(
         session.get(),
         p4::v1::SetForwardingPipelineConfigRequest::VERIFY_AND_COMMIT, fpc));
-    LOG(INFO) << "Pipeline loaded on SUT";
-  }
-  {
-    ASSERT_OK_AND_ASSIGN(
-        auto session,
-        pdpi::P4RuntimeSession::Create(
-            control_server.Address(), grpc::InsecureChannelCredentials(),
-            control_server.DeviceId()));
-    ASSERT_OK(pdpi::SetMetadataAndSetForwardingPipelineConfig(
-        session.get(),
-        p4::v1::SetForwardingPipelineConfigRequest::VERIFY_AND_COMMIT, fpc));
-    LOG(INFO) << "Pipeline loaded on control switch";
+    LOG(INFO) << "Pipeline loaded on " << server->Address();
   }
 
   const auto& ir_p4info =

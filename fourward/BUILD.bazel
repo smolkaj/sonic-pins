@@ -134,32 +134,10 @@ cc_library(
 exports_files([
     "update_prebuilt.sh",
     "prebuilt/p4runtime_server.jar",
-    "prebuilt/p4c-4ward",
+    "prebuilt/sai_middleblock.binpb",
 ])
 
-# Compile SAI P4 middleblock for 4ward at build time.
-# Preserves @p4runtime_translation annotations so the P4Info matches the entries
-# produced by sai::EntryBuilder (SDN string encoding for ports, VRFs, etc.).
-genrule(
-    name = "sai_middleblock_fpc",
-    srcs = [
-        "//sai_p4/instantiations/google:middleblock.p4",
-        "//sai_p4/instantiations/google:sai_p4",
-        "//sai_p4/fixed",
-        "@com_github_p4lang_p4c//:p4include",
-        "@com_github_p4lang_p4c//:p4include/v1model.p4",
-    ],
-    outs = ["sai_middleblock.binpb"],
-    cmd = " ".join([
-        "$(location prebuilt/p4c-4ward)",
-        "--format p4runtime",
-        "-I $$(dirname $(location @com_github_p4lang_p4c//:p4include/v1model.p4))",
-        "-I .",
-        "-o $@",
-        "$(location //sai_p4/instantiations/google:middleblock.p4)",
-    ]),
-    tools = ["prebuilt/p4c-4ward"],
-)
+
 
 # -- Integration test ----------------------------------------------------------
 
@@ -167,8 +145,8 @@ cc_test(
     name = "fourward_dvaas_test",
     srcs = ["fourward_dvaas_test.cc"],
     data = [
-        ":sai_middleblock_fpc",
         "prebuilt/p4runtime_server.jar",
+        "prebuilt/sai_middleblock.binpb",
     ],
     # Static linking avoids abseil ODR violations across shared libraries.
     linkstatic = True,

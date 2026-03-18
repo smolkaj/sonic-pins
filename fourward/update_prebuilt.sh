@@ -6,7 +6,7 @@
 #
 # Produces:
 #   fourward/prebuilt/p4runtime_server.jar   — self-contained server JAR
-#   fourward/prebuilt/p4c-4ward              — p4c backend plugin (C++ binary)
+#   fourward/prebuilt/sai_middleblock.binpb  — compiled SAI middleblock pipeline
 #   fourward/prebuilt/COMMIT                 — source commit + timestamp
 
 set -euo pipefail
@@ -32,11 +32,14 @@ cp -f bazel-bin/p4runtime/p4runtime_server_deploy_deploy.jar \
       "$PREBUILT_DIR/p4runtime_server.jar"
 echo "  -> $(du -h "$PREBUILT_DIR/p4runtime_server.jar" | cut -f1)"
 
-# Build the p4c backend plugin.
-echo "Building p4c-4ward..."
-bazel build //p4c_backend:p4c-4ward
-cp -f bazel-bin/p4c_backend/p4c-4ward "$PREBUILT_DIR/p4c-4ward"
-echo "  -> $(du -h "$PREBUILT_DIR/p4c-4ward" | cut -f1)"
+# Build the SAI middleblock pipeline (binary ForwardingPipelineConfig proto).
+# Preserves @p4runtime_translation annotations so the P4Info matches the
+# entries produced by sai::EntryBuilder (SDN string encoding for ports, etc.).
+echo "Building SAI middleblock pipeline..."
+bazel build //e2e_tests/sai_p4:sai_middleblock_binpb
+cp -f bazel-bin/e2e_tests/sai_p4/sai_middleblock.binpb \
+      "$PREBUILT_DIR/sai_middleblock.binpb"
+echo "  -> $(du -h "$PREBUILT_DIR/sai_middleblock.binpb" | cut -f1)"
 
 echo ""
 echo "Updated fourward/prebuilt/ from $COMMIT"

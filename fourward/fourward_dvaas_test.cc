@@ -16,17 +16,16 @@
 // instances, connected by a PacketBridge, with fake gNMI servers for port
 // discovery.
 //
-// The test starts the 4ward servers as subprocesses, compiles/loads the SAI
-// middleblock pipeline, and runs DVaaS validation — all self-contained. The
-// only external dependency is the 4ward server binary, provided as a flag
-// (will become a Bazel data dep).
+// The test starts the 4ward servers as subprocesses (pre-built deploy JAR),
+// compiles the SAI middleblock pipeline at build time (pre-built p4c-4ward),
+// and runs DVaaS validation — all self-contained via `bazel test`.
 
+#include <cstdlib>
 #include <memory>
 #include <string>
 
-#include "absl/flags/flag.h"
-#include "absl/flags/parse.h"
 #include "absl/log/log.h"
+#include "absl/strings/str_cat.h"
 #include "dvaas/dataplane_validation.h"
 #include "fourward/fake_gnmi_service.h"
 #include "fourward/fourward_dataplane_validation_backend.h"
@@ -42,26 +41,28 @@
 #include "sai_p4/instantiations/google/sai_p4info.h"
 #include "sai_p4/instantiations/google/test_tools/test_entries.h"
 
-ABSL_FLAG(std::string, server_binary, "",
-          "Path to the 4ward P4RuntimeServer binary.");
-ABSL_FLAG(std::string, pipeline, "",
-          "Path to compiled ForwardingPipelineConfig binary.");
-
 namespace fourward {
 namespace {
 
 using ::gutil::IsOk;
 
-TEST(FourwardDvaasTest, UpstreamDvaasValidation) {
-  std::string binary = absl::GetFlag(FLAGS_server_binary);
-  ASSERT_FALSE(binary.empty())
-      << "Must set --server_binary to the path of the 4ward "
-         "P4RuntimeServer binary.";
+// Resolves a Bazel runfile path to an absolute path.
+std::string Runfile(const std::string& path) {
+  const char* srcdir = std::getenv("TEST_SRCDIR");
+  const char* workspace = std::getenv("TEST_WORKSPACE");
+  if (srcdir != nullptr && workspace != nullptr) {
+    return absl::StrCat(srcdir, "/", workspace, "/", path);
+  }
+  // Fallback: assume we're in the workspace root (e.g. manual invocation).
+  return path;
+}
 
-  std::string pipeline_path = absl::GetFlag(FLAGS_pipeline);
-  ASSERT_FALSE(pipeline_path.empty())
-      << "Must set --pipeline to the path of a compiled "
-         "ForwardingPipelineConfig binary (.binpb).";
+constexpr char kServerJar[] = "fourward/prebuilt/p4runtime_server.jar";
+constexpr char kPipeline[] = "fourward/sai_middleblock.binpb";
+
+TEST(FourwardDvaasTest, UpstreamDvaasValidation) {
+  std::string binary = Runfile(kServerJar);
+  std::string pipeline_path = Runfile(kPipeline);
 
   // Start two 4ward P4Runtime servers on random ports.
   ASSERT_OK_AND_ASSIGN(auto sut_server, FourwardServer::Start({
@@ -184,10 +185,3 @@ TEST(FourwardDvaasTest, UpstreamDvaasValidation) {
 
 }  // namespace
 }  // namespace fourward
-
-// Custom main: parse absl flags before running gtest.
-int main(int argc, char** argv) {
-  testing::InitGoogleTest(&argc, argv);
-  absl::ParseCommandLine(argc, argv);
-  return RUN_ALL_TESTS();
-}

@@ -30,6 +30,7 @@
 #include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/match.h"
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
@@ -218,12 +219,16 @@ absl::StatusOr<FourwardServer> FourwardServer::Start(Options options) {
     unsetenv("JAVA_RUNFILES");
     unsetenv("TEST_SRCDIR");
 
-    std::vector<const char*> argv = {
-        options.binary_path.c_str(),
-        port_flag.c_str(),
-        device_id_flag.c_str(),
-        nullptr,
-    };
+    std::vector<const char*> argv;
+    if (absl::EndsWith(options.binary_path, ".jar")) {
+      // Deploy JAR: launch via `java -jar <path> <flags>`.
+      argv = {"java", "-jar", options.binary_path.c_str(),
+              port_flag.c_str(), device_id_flag.c_str(), nullptr};
+    } else {
+      // Native binary: exec directly.
+      argv = {options.binary_path.c_str(), port_flag.c_str(),
+              device_id_flag.c_str(), nullptr};
+    }
 
     execvp(argv[0], const_cast<char* const*>(argv.data()));
     // exec failed.

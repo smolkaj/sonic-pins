@@ -21,8 +21,6 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/escaping.h"
-#include "absl/strings/numbers.h"
-#include "absl/strings/str_cat.h"
 #include "dvaas/test_vector.h"
 #include "dvaas/test_vector.pb.h"
 #include "fourward/dataplane.grpc.pb.h"
@@ -141,15 +139,11 @@ FourwardDataplaneValidationBackend::GeneratePacketTestVectors(
     input_packet->set_hex(absl::BytesToHexString(tagged_packet));
     *input_packet->mutable_parsed() = parsed;
 
+    // Use P4RT port encoding directly — the 4ward server translates to
+    // dataplane ports internally via the PortTranslator.
     dataplane::InjectPacketRequest inject_request;
-    auto* pkt = inject_request.mutable_packet();
-    uint32_t port_num = 0;
-    if (!absl::SimpleAtoi(ingress_port, &port_num)) {
-      return absl::InvalidArgumentError(
-          absl::StrCat("Non-numeric port: ", ingress_port));
-    }
-    pkt->set_ingress_port(port_num);
-    pkt->set_payload(tagged_packet);
+    inject_request.set_p4rt_ingress_port(ingress_port);
+    inject_request.set_payload(tagged_packet);
 
     grpc::ClientContext ctx;
     dataplane::InjectPacketResponse inject_response;
@@ -160,7 +154,8 @@ FourwardDataplaneValidationBackend::GeneratePacketTestVectors(
     auto* output = test_vector.add_acceptable_outputs();
     for (const auto& out_pkt : inject_response.output_packets()) {
       auto* predicted = output->add_packets();
-      predicted->set_port(absl::StrCat(out_pkt.egress_port()));
+      // Use P4RT port encoding from the dual-encoded response.
+      predicted->set_port(out_pkt.p4rt_egress_port());
       const std::string& out_payload = out_pkt.payload();
       predicted->set_hex(absl::BytesToHexString(out_payload));
       *predicted->mutable_parsed() = packetlib::ParsePacket(out_payload);

@@ -1,11 +1,10 @@
 // Minimal proto definitions for 4ward's DataplaneService.
 //
-// These are a subset of 4ward's simulator.proto and dataplane.proto, containing
-// only what's needed for the PacketBridge to inject and observe packets.
+// These are a subset of 4ward's dataplane.proto, containing only what's
+// needed for the PacketBridge and FourwardDataplaneValidationBackend.
 //
 // For the full definitions, see:
 //   https://github.com/smolkaj/4ward/blob/main/p4runtime/dataplane.proto
-//   https://github.com/smolkaj/4ward/blob/main/simulator/simulator.proto
 
 syntax = "proto3";
 
@@ -22,26 +21,40 @@ service Dataplane {
 }
 
 message InputPacket {
-  uint32 ingress_port = 1;
+  uint32 dataplane_ingress_port = 1;
+  // Only populated when port translation is available.
+  bytes p4rt_ingress_port = 3;
   bytes payload = 2;
 }
 
 message OutputPacket {
-  uint32 egress_port = 1;
+  uint32 dataplane_egress_port = 1;
+  // Only populated when port translation is available.
+  bytes p4rt_egress_port = 3;
   bytes payload = 2;
 }
 
 message InjectPacketRequest {
-  InputPacket packet = 1;
+  oneof ingress_port {
+    // Dataplane port number (e.g. 0, 1, 510).
+    uint32 dataplane_ingress_port = 1;
+    // P4Runtime port ID — opaque bytes whose encoding depends on
+    // @p4runtime_translation. Requires a loaded pipeline with port
+    // translation; otherwise the RPC fails with FAILED_PRECONDITION.
+    bytes p4rt_ingress_port = 2;
+  }
+  bytes payload = 3;
 }
 
+// InjectPacket response. Omits the input (the caller already has it).
 message InjectPacketResponse {
   repeated OutputPacket output_packets = 1;
-  // trace field omitted — not needed by the bridge.
+  // trace field omitted — not needed by the bridge or backend.
 }
 
+// Result bundle for SubscribeResults: input + outputs.
 message ProcessPacketResult {
-  InputPacket input = 1;
+  InputPacket input_packet = 1;
   repeated OutputPacket output_packets = 2;
   // trace field omitted.
 }

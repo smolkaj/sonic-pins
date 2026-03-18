@@ -121,11 +121,12 @@ void PacketBridge::ForwardLoop(const std::string& from_address,
     // Forward each output packet to the other instance.
     for (const auto& output : result.output_packets()) {
       dataplane::InjectPacketRequest inject_request;
-      auto* packet = inject_request.mutable_packet();
       // The output's egress port becomes the input's ingress port on the
       // other instance (simulating a back-to-back physical link).
-      packet->set_ingress_port(output.egress_port());
-      packet->set_payload(output.payload());
+      // The bridge operates at the dataplane level — no P4RT translation.
+      inject_request.set_dataplane_ingress_port(
+          output.dataplane_egress_port());
+      inject_request.set_payload(output.payload());
 
       grpc::ClientContext inject_ctx;
       dataplane::InjectPacketResponse inject_response;
@@ -134,11 +135,12 @@ void PacketBridge::ForwardLoop(const std::string& from_address,
       if (status.ok()) {
         packets_forwarded_.fetch_add(1);
         VLOG(1) << direction_label << ": forwarded packet on port "
-                << output.egress_port();
+                << output.dataplane_egress_port();
       } else {
         LOG(WARNING) << direction_label
                      << ": failed to inject packet on port "
-                     << output.egress_port() << ": " << status.error_message();
+                     << output.dataplane_egress_port()
+                     << ": " << status.error_message();
       }
     }
   }

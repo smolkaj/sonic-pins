@@ -19,6 +19,7 @@
 
 #include "absl/log/log.h"
 #include "absl/status/status.h"
+#include "absl/time/time.h"
 #include "fourward/dataplane.grpc.pb.h"
 #include "fourward/dataplane.pb.h"
 #include "grpcpp/channel.h"
@@ -44,10 +45,21 @@ absl::Status PacketBridge::Start() {
   // Spawn forwarding threads for both directions.
   sut_to_control_ = std::thread(&PacketBridge::ForwardLoop, this,
                                 sut_address_, control_address_,
-                                "SUT→Control");
+                                "SUT→Control",
+                                std::ref(sut_to_control_ready_));
   control_to_sut_ = std::thread(&PacketBridge::ForwardLoop, this,
                                 control_address_, sut_address_,
-                                "Control→SUT");
+                                "Control→SUT",
+                                std::ref(control_to_sut_ready_));
+  // Block until both subscriptions are active.
+  constexpr absl::Duration kTimeout = absl::Seconds(10);
+  if (!sut_to_control_ready_.WaitForNotificationWithTimeout(kTimeout) ||
+      !control_to_sut_ready_.WaitForNotificationWithTimeout(kTimeout)) {
+    Stop();
+    return absl::DeadlineExceededError(
+        "PacketBridge subscriptions did not become active within 10s");
+  }
+
   LOG(INFO) << "PacketBridge started: " << sut_address_ << " <-> "
             << control_address_;
   return absl::OkStatus();
@@ -70,7 +82,8 @@ void PacketBridge::Stop() {
 
 void PacketBridge::ForwardLoop(const std::string& from_address,
                                const std::string& to_address,
-                               const std::string& direction_label) {
+                               const std::string& direction_label,
+                               absl::Notification& ready) {
   // Create channels and stubs.
   auto from_channel =
       grpc::CreateChannel(from_address, grpc::InsecureChannelCredentials());
@@ -98,6 +111,7 @@ void PacketBridge::ForwardLoop(const std::string& from_address,
   while (running_.load() && reader->Read(&response)) {
     if (response.has_active()) {
       LOG(INFO) << direction_label << ": subscription active";
+      ready.Notify();
       continue;
     }
 

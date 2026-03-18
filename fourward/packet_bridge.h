@@ -35,6 +35,7 @@
 #include <thread>
 
 #include "absl/status/status.h"
+#include "absl/synchronization/notification.h"
 #include "absl/strings/string_view.h"
 #include "grpcpp/channel.h"
 #include "grpcpp/client_context.h"
@@ -70,7 +71,8 @@ class PacketBridge {
   // to `to` via InjectPacket.
   void ForwardLoop(const std::string& from_address,
                    const std::string& to_address,
-                   const std::string& direction_label);
+                   const std::string& direction_label,
+                   absl::Notification& ready);
 
   std::string sut_address_;
   std::string control_address_;
@@ -84,6 +86,10 @@ class PacketBridge {
   std::mutex contexts_mu_;
   grpc::ClientContext* sut_subscribe_ctx_ = nullptr;
   grpc::ClientContext* control_subscribe_ctx_ = nullptr;
+
+  // Signaled by each ForwardLoop when its SubscribeResults stream is active.
+  absl::Notification sut_to_control_ready_;
+  absl::Notification control_to_sut_ready_;
 };
 
 }  // namespace fourward

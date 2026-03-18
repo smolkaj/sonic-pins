@@ -118,6 +118,14 @@ cc_library(
     ],
 )
 
+# -- Bazel runfile resolution ---------------------------------------------------
+
+cc_library(
+    name = "runfiles",
+    hdrs = ["runfiles.h"],
+    deps = ["@com_google_absl//absl/strings"],
+)
+
 # -- 4ward server subprocess manager -------------------------------------------
 
 cc_library(
@@ -125,6 +133,7 @@ cc_library(
     srcs = ["fourward_server.cc"],
     hdrs = ["fourward_server.h"],
     deps = [
+        ":runfiles",
         "@com_google_absl//absl/log",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
@@ -160,6 +169,7 @@ cc_test(
     deps = [
         ":fourward_dataplane_validation_backend",
         ":fourward_mirror_testbed",
+        ":runfiles",
         "//dvaas:dataplane_validation",
         "//gutil/gutil:io",
         "//gutil/gutil:status_matchers",
@@ -168,7 +178,6 @@ cc_test(
         "//sai_p4/instantiations/google:sai_p4info_cc",
         "//sai_p4/instantiations/google/test_tools:test_entries",
         "@com_google_absl//absl/log",
-        "@com_google_absl//absl/strings",
         "@com_google_googletest//:gtest_main",
     ],
 )

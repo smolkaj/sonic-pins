@@ -19,10 +19,7 @@
 // process on destruction.
 //
 // Usage:
-//   ASSERT_OK_AND_ASSIGN(auto server, FourwardServer::Start({
-//       .binary_path = "path/to/p4runtime_server.jar",
-//       .device_id = 1,
-//   }));
+//   ASSERT_OK_AND_ASSIGN(auto server, FourwardServer::Start({.device_id = 1}));
 //   // server.Address() returns "localhost:<random-port>"
 //   // server is killed when it goes out of scope.
 
@@ -41,9 +38,6 @@ namespace fourward {
 class FourwardServer {
  public:
   struct Options {
-    // Path to the server binary. If it ends in ".jar", the server is launched
-    // via `java -jar <path>`.
-    std::string binary_path;
     uint32_t device_id = 1;
     absl::Duration startup_timeout = absl::Seconds(60);
   };

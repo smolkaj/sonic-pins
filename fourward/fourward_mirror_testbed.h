@@ -18,10 +18,8 @@
 // on destruction.
 //
 // Usage:
-//   ASSERT_OK_AND_ASSIGN(auto testbed, FourwardMirrorTestbed::Start({
-//       .binary_path = "path/to/p4runtime_server.jar",
-//   }));
-//   // testbed.Sut() and testbed.ControlSwitch() are ready for use.
+//   ASSERT_OK_AND_ASSIGN(auto testbed, FourwardMirrorTestbed::Start());
+//   // testbed->Sut() and testbed->ControlSwitch() are ready for use.
 
 #ifndef PINS_FOURWARD_FOURWARD_MIRROR_TESTBED_H_
 #define PINS_FOURWARD_FOURWARD_MIRROR_TESTBED_H_
@@ -39,21 +37,10 @@ namespace fourward {
 
 class FourwardMirrorTestbed : public thinkit::MirrorTestbed {
  public:
-  struct Options {
-    std::string binary_path;
-  };
-
   // Starts two 4ward switches and connects them with a PacketBridge.
-  static absl::StatusOr<std::unique_ptr<FourwardMirrorTestbed>> Start(
-      Options options) {
-    ASSIGN_OR_RETURN(auto sut, FourwardSwitch::Start({
-        .binary_path = options.binary_path,
-        .device_id = 1,
-    }));
-    ASSIGN_OR_RETURN(auto control, FourwardSwitch::Start({
-        .binary_path = options.binary_path,
-        .device_id = 2,
-    }));
+  static absl::StatusOr<std::unique_ptr<FourwardMirrorTestbed>> Start() {
+    ASSIGN_OR_RETURN(auto sut, FourwardSwitch::Start({.device_id = 1}));
+    ASSIGN_OR_RETURN(auto control, FourwardSwitch::Start({.device_id = 2}));
     auto bridge = std::make_unique<PacketBridge>(
         sut.P4rtAddress(), control.P4rtAddress());
     RETURN_IF_ERROR(bridge->Start());

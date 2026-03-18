@@ -17,10 +17,7 @@
 // is killed on destruction.
 //
 // Usage:
-//   ASSERT_OK_AND_ASSIGN(auto sw, FourwardSwitch::Start({
-//       .binary_path = "path/to/p4runtime_server.jar",
-//       .device_id = 1,
-//   }));
+//   ASSERT_OK_AND_ASSIGN(auto sw, FourwardSwitch::Start({.device_id = 1}));
 //   // sw is a fully functional thinkit::Switch with P4Runtime + gNMI.
 
 #ifndef PINS_FOURWARD_FOURWARD_SWITCH_H_

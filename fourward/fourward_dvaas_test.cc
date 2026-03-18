@@ -15,15 +15,14 @@
 // End-to-end test: runs upstream DVaaS against two 4ward P4RuntimeServer
 // instances connected by a PacketBridge.
 
-#include <cstdlib>
 #include <memory>
 #include <string>
 
 #include "absl/log/log.h"
-#include "absl/strings/str_cat.h"
 #include "dvaas/dataplane_validation.h"
 #include "fourward/fourward_dataplane_validation_backend.h"
 #include "fourward/fourward_mirror_testbed.h"
+#include "fourward/runfiles.h"
 #include "gtest/gtest.h"
 #include "grpcpp/security/credentials.h"
 #include "gutil/gutil/io.h"
@@ -38,28 +37,16 @@ namespace {
 
 using ::gutil::IsOk;
 
-std::string Runfile(const std::string& path) {
-  const char* srcdir = std::getenv("TEST_SRCDIR");
-  const char* workspace = std::getenv("TEST_WORKSPACE");
-  if (srcdir != nullptr && workspace != nullptr) {
-    return absl::StrCat(srcdir, "/", workspace, "/", path);
-  }
-  return path;
-}
-
-constexpr char kServerJar[] = "fourward/prebuilt/p4runtime_server.jar";
 constexpr char kPipeline[] = "fourward/prebuilt/sai_middleblock.binpb";
 
 TEST(FourwardDvaasTest, UpstreamDvaasValidation) {
   // Start two 4ward instances connected by a PacketBridge.
-  ASSERT_OK_AND_ASSIGN(auto testbed, FourwardMirrorTestbed::Start({
-      .binary_path = Runfile(kServerJar),
-  }));
+  ASSERT_OK_AND_ASSIGN(auto testbed, FourwardMirrorTestbed::Start());
   LOG(INFO) << "Testbed started: SUT=" << testbed->Sut().ChassisName()
             << " control=" << testbed->ControlSwitch().ChassisName();
 
   // Load pipeline onto both switches.
-  ASSERT_OK_AND_ASSIGN(std::string bytes, gutil::ReadFile(Runfile(kPipeline)));
+  ASSERT_OK_AND_ASSIGN(std::string bytes, gutil::ReadFile(fourward::BazelRunfile(kPipeline)));
   p4::v1::ForwardingPipelineConfig fpc;
   ASSERT_TRUE(fpc.ParseFromString(bytes)) << "Failed to parse pipeline";
   for (auto* sw : {&testbed->Sut(), &testbed->ControlSwitch()}) {

@@ -58,7 +58,7 @@ std::string Runfile(const std::string& path) {
 }
 
 constexpr char kServerJar[] = "fourward/prebuilt/p4runtime_server.jar";
-constexpr char kPipeline[] = "fourward/sai_middleblock.binpb";
+constexpr char kPipeline[] = "fourward/prebuilt/sai_middleblock.binpb";
 
 TEST(FourwardDvaasTest, UpstreamDvaasValidation) {
   std::string binary = Runfile(kServerJar);

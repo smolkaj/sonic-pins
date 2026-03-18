@@ -94,6 +94,9 @@ cc_library(
     name = "fourward_switch",
     hdrs = ["fourward_switch.h"],
     deps = [
+        ":fake_gnmi_service",
+        ":fourward_server",
+        "//gutil/gutil:status",
         "//thinkit:switch",
         "@com_github_gnmi//proto/gnmi:gnmi_cc_grpc_proto",
         "@com_github_grpc_grpc//:grpc++",
@@ -107,8 +110,11 @@ cc_library(
     hdrs = ["fourward_mirror_testbed.h"],
     deps = [
         ":fourward_switch",
+        ":packet_bridge",
+        "//gutil/gutil:status",
         "//thinkit:bazel_test_environment",
         "//thinkit:mirror_testbed",
+        "@com_google_absl//absl/status:statusor",
     ],
 )
 
@@ -154,9 +160,6 @@ cc_test(
     deps = [
         ":fourward_dataplane_validation_backend",
         ":fourward_mirror_testbed",
-        ":fourward_server",
-        ":fake_gnmi_service",
-        ":packet_bridge",
         "//dvaas:dataplane_validation",
         "//gutil/gutil:io",
         "//gutil/gutil:status_matchers",

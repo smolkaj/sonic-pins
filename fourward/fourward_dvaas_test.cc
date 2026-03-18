@@ -75,7 +75,7 @@ TEST(FourwardDvaasTest, UpstreamDvaasValidation) {
 
   // Run DVaaS validation.
   auto backend = std::make_unique<FourwardDataplaneValidationBackend>(
-      testbed->SutP4rtAddress());
+      testbed->SutFourwardAddress());
   dvaas::DataplaneValidator validator(std::move(backend));
 
   dvaas::DataplaneValidationParams params;

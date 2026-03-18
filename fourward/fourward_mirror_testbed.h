@@ -42,7 +42,7 @@ class FourwardMirrorTestbed : public thinkit::MirrorTestbed {
     ASSIGN_OR_RETURN(auto sut, FourwardSwitch::Start({.device_id = 1}));
     ASSIGN_OR_RETURN(auto control, FourwardSwitch::Start({.device_id = 2}));
     auto bridge = std::make_unique<PacketBridge>(
-        sut.P4rtAddress(), control.P4rtAddress());
+        sut.FourwardAddress(), control.FourwardAddress());
     RETURN_IF_ERROR(bridge->Start());
     return std::unique_ptr<FourwardMirrorTestbed>(new FourwardMirrorTestbed(
         std::move(sut), std::move(control), std::move(bridge)));
@@ -55,8 +55,8 @@ class FourwardMirrorTestbed : public thinkit::MirrorTestbed {
   thinkit::Switch& ControlSwitch() override { return control_; }
   thinkit::TestEnvironment& Environment() override { return env_; }
 
-  // P4Runtime address of the SUT (for DataplaneValidationBackend).
-  const std::string& SutP4rtAddress() const { return sut_.P4rtAddress(); }
+  // 4ward server address of the SUT (for DataplaneValidationBackend).
+  const std::string& SutFourwardAddress() const { return sut_.FourwardAddress(); }
 
   PacketBridge& Bridge() { return *bridge_; }
 

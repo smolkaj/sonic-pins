@@ -61,8 +61,8 @@ class FourwardSwitch : public thinkit::Switch {
   const std::string& ChassisName() override { return server_.Address(); }
   uint32_t DeviceId() override { return server_.DeviceId(); }
 
-  // P4Runtime address (for direct gRPC use outside the thinkit interface).
-  const std::string& P4rtAddress() const { return server_.Address(); }
+  // 4ward server address (serves both P4Runtime and Dataplane gRPC services).
+  const std::string& FourwardAddress() const { return server_.Address(); }
 
   absl::StatusOr<std::unique_ptr<p4::v1::P4Runtime::StubInterface>>
   CreateP4RuntimeStub() override {

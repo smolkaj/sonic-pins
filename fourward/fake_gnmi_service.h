@@ -21,11 +21,11 @@
 #ifndef PINS_FOURWARD_FAKE_GNMI_SERVICE_H_
 #define PINS_FOURWARD_FAKE_GNMI_SERVICE_H_
 
-#include <cstdint>
 #include <memory>
 #include <string>
 #include <vector>
 
+#include "absl/log/check.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/str_join.h"
@@ -44,10 +44,12 @@ struct FakeInterface {
 };
 
 // Fake gNMI service that models a set of Ethernet interfaces.
+// Interface state is immutable after construction.
 class FakeGnmiService final : public gnmi::gNMI::Service {
  public:
   explicit FakeGnmiService(std::vector<FakeInterface> interfaces)
-      : interfaces_(std::move(interfaces)) {}
+      : config_json_(BuildInterfacesJson(interfaces, /*config=*/true)),
+        state_json_(BuildInterfacesJson(interfaces, /*config=*/false)) {}
 
   // Creates a default set of 8 Ethernet interfaces.
   static std::vector<FakeInterface> DefaultInterfaces() {
@@ -62,16 +64,11 @@ class FakeGnmiService final : public gnmi::gNMI::Service {
   grpc::Status Get(grpc::ServerContext* /*context*/,
                    const gnmi::GetRequest* request,
                    gnmi::GetResponse* response) override {
-    std::string json;
-    if (request->type() == gnmi::GetRequest::CONFIG) {
-      json = BuildInterfacesJson(/*config=*/true);
-    } else {
-      json = BuildInterfacesJson(/*config=*/false);
-    }
-
     auto* notification = response->add_notification();
     auto* update = notification->add_update();
-    update->mutable_val()->set_json_ietf_val(json);
+    update->mutable_val()->set_json_ietf_val(
+        request->type() == gnmi::GetRequest::CONFIG ? config_json_
+                                                    : state_json_);
     return grpc::Status::OK;
   }
 
@@ -100,9 +97,10 @@ class FakeGnmiService final : public gnmi::gNMI::Service {
   }
 
  private:
-  std::string BuildInterfacesJson(bool config) const {
+  static std::string BuildInterfacesJson(
+      const std::vector<FakeInterface>& interfaces, bool config) {
     std::vector<std::string> entries;
-    for (const auto& iface : interfaces_) {
+    for (const auto& iface : interfaces) {
       std::string inner;
       if (config) {
         inner = absl::StrFormat(
@@ -124,7 +122,8 @@ class FakeGnmiService final : public gnmi::gNMI::Service {
         absl::StrJoin(entries, ","));
   }
 
-  std::vector<FakeInterface> interfaces_;
+  const std::string config_json_;
+  const std::string state_json_;
 };
 
 // Starts a FakeGnmiService on a random port and returns the address.
@@ -144,6 +143,7 @@ struct FakeGnmiServer {
                              &port);
     builder.RegisterService(&service);
     server = builder.BuildAndStart();
+    CHECK(server != nullptr) << "Failed to start fake gNMI server";
     address = absl::StrCat("localhost:", port);
   }
 };

@@ -14,17 +14,16 @@
 
 // Manages a 4ward P4Runtime server subprocess.
 //
-// Starts the server binary with specified port and device ID, waits for gRPC
+// Starts the server binary on a random OS-assigned port, waits for gRPC
 // readiness by reading stdout for the "listening on port" banner, and kills the
 // process on destruction.
 //
 // Usage:
 //   ASSERT_OK_AND_ASSIGN(auto server, FourwardServer::Start({
-//       .binary_path = "path/to/p4runtime_server",
-//       .port = 9559,
+//       .binary_path = "path/to/p4runtime_server.jar",
 //       .device_id = 1,
 //   }));
-//   // server.Address() returns "localhost:9559"
+//   // server.Address() returns "localhost:<random-port>"
 //   // server is killed when it goes out of scope.
 
 #ifndef PINS_FOURWARD_FOURWARD_SERVER_H_
@@ -42,13 +41,14 @@ namespace fourward {
 class FourwardServer {
  public:
   struct Options {
+    // Path to the server binary. If it ends in ".jar", the server is launched
+    // via `java -jar <path>`.
     std::string binary_path;
-    int port = 0;  // 0 = pick a free port.
     uint32_t device_id = 1;
     absl::Duration startup_timeout = absl::Seconds(60);
   };
 
-  // Starts the server and blocks until it reports readiness on stdout.
+  // Starts the server on a random port and blocks until it reports readiness.
   static absl::StatusOr<FourwardServer> Start(Options options);
 
   FourwardServer(const FourwardServer&) = delete;

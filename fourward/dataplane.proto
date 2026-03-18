@@ -1,0 +1,58 @@
+// Minimal proto definitions for 4ward's DataplaneService.
+//
+// These are a subset of 4ward's simulator.proto and dataplane.proto, containing
+// only what's needed for the PacketBridge to inject and observe packets.
+//
+// For the full definitions, see:
+//   https://github.com/smolkaj/4ward/blob/main/p4runtime/dataplane.proto
+//   https://github.com/smolkaj/4ward/blob/main/simulator/simulator.proto
+
+syntax = "proto3";
+
+package fourward.dataplane;
+
+service Dataplane {
+  // Inject a single packet into the data plane. Returns the result inline.
+  rpc InjectPacket(InjectPacketRequest) returns (InjectPacketResponse);
+
+  // Observe results from ALL injection sources. Each result bundles the input
+  // with all its outputs.
+  rpc SubscribeResults(SubscribeResultsRequest)
+      returns (stream SubscribeResultsResponse);
+}
+
+message InputPacket {
+  uint32 ingress_port = 1;
+  bytes payload = 2;
+}
+
+message OutputPacket {
+  uint32 egress_port = 1;
+  bytes payload = 2;
+}
+
+message InjectPacketRequest {
+  InputPacket packet = 1;
+}
+
+message InjectPacketResponse {
+  repeated OutputPacket output_packets = 1;
+  // trace field omitted — not needed by the bridge.
+}
+
+message ProcessPacketResult {
+  InputPacket input = 1;
+  repeated OutputPacket output_packets = 2;
+  // trace field omitted.
+}
+
+message SubscribeResultsRequest {}
+
+message SubscribeResultsResponse {
+  oneof event {
+    SubscriptionActive active = 1;
+    ProcessPacketResult result = 2;
+  }
+}
+
+message SubscriptionActive {}

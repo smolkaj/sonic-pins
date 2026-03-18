@@ -139,8 +139,6 @@ FourwardDataplaneValidationBackend::GeneratePacketTestVectors(
     input_packet->set_hex(absl::BytesToHexString(tagged_packet));
     *input_packet->mutable_parsed() = parsed;
 
-    // Use P4RT port encoding directly — the 4ward server translates to
-    // dataplane ports internally via the PortTranslator.
     dataplane::InjectPacketRequest inject_request;
     inject_request.set_p4rt_ingress_port(ingress_port);
     inject_request.set_payload(tagged_packet);
@@ -154,7 +152,6 @@ FourwardDataplaneValidationBackend::GeneratePacketTestVectors(
     auto* output = test_vector.add_acceptable_outputs();
     for (const auto& out_pkt : inject_response.output_packets()) {
       auto* predicted = output->add_packets();
-      // Use P4RT port encoding from the dual-encoded response.
       predicted->set_port(out_pkt.p4rt_egress_port());
       const std::string& out_payload = out_pkt.payload();
       predicted->set_hex(absl::BytesToHexString(out_payload));

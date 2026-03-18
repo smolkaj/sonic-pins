@@ -121,9 +121,8 @@ void PacketBridge::ForwardLoop(const std::string& from_address,
     // Forward each output packet to the other instance.
     for (const auto& output : result.output_packets()) {
       dataplane::InjectPacketRequest inject_request;
-      // The output's egress port becomes the input's ingress port on the
-      // other instance (simulating a back-to-back physical link).
-      // The bridge operates at the dataplane level — no P4RT translation.
+      // Simulates a back-to-back physical link: egress on one instance
+      // becomes ingress on the other, using dataplane ports directly.
       inject_request.set_dataplane_ingress_port(
           output.dataplane_egress_port());
       inject_request.set_payload(output.payload());

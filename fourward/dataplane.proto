@@ -1,5 +1,8 @@
 // Minimal proto definitions for 4ward's DataplaneService.
 //
+// TODO(bazel_dep): Delete this file and depend on
+// @fourward//p4runtime:dataplane_proto once 4ward is a bazel_dep.
+//
 // These are a subset of 4ward's dataplane.proto, containing only what's
 // needed for the PacketBridge and FourwardDataplaneValidationBackend.
 //

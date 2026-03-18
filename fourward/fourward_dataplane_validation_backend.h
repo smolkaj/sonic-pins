@@ -21,24 +21,19 @@
 #ifndef PINS_FOURWARD_FOURWARD_DATAPLANE_VALIDATION_BACKEND_H_
 #define PINS_FOURWARD_FOURWARD_DATAPLANE_VALIDATION_BACKEND_H_
 
+#include <memory>
 #include <string>
 
 #include "dvaas/dataplane_validation.h"
+#include "fourward/dataplane.grpc.pb.h"
+#include "grpcpp/channel.h"
 
 namespace fourward {
 
-// DataplaneValidationBackend that uses hardcoded test packets and generates
-// output predictions by injecting them into a 4ward simulator instance.
-//
-// The backend address identifies the 4ward instance used as the reference
-// model for output prediction. This should be the same instance as the SUT
-// (since 4ward IS the reference implementation), making this effectively a
-// self-consistency check.
 class FourwardDataplaneValidationBackend : public dvaas::DataplaneValidationBackend {
  public:
   explicit FourwardDataplaneValidationBackend(std::string sut_address);
 
-  // Returns hardcoded test packets (no Z3/SMT synthesis).
   absl::StatusOr<dvaas::PacketSynthesisResult> SynthesizePackets(
       const pdpi::IrP4Info& ir_p4info, const pdpi::IrEntities& ir_entities,
       const p4::v1::ForwardingPipelineConfig& p4_symbolic_config,
@@ -48,8 +43,6 @@ class FourwardDataplaneValidationBackend : public dvaas::DataplaneValidationBack
           coverage_goals_override,
       std::optional<absl::Duration> time_limit) const override;
 
-  // Tags synthesized packets with test IDs and generates output predictions
-  // by injecting each packet into the 4ward simulator via InjectPacket RPC.
   absl::StatusOr<dvaas::PacketTestVectorById> GeneratePacketTestVectors(
       const pdpi::IrP4Info& ir_p4info, const pdpi::IrEntities& ir_entities,
       const p4::v1::ForwardingPipelineConfig& bmv2_config,
@@ -59,7 +52,6 @@ class FourwardDataplaneValidationBackend : public dvaas::DataplaneValidationBack
       const pins_test::P4rtPortId& default_ingress_port,
       bool check_prediction_conformity) const override;
 
-  // Returns SAI P4 ACL entries that punt all received packets.
   absl::StatusOr<pdpi::IrEntities> GetEntitiesToPuntAllPackets(
       const pdpi::IrP4Info& switch_p4info) const override;
 
@@ -86,7 +78,8 @@ class FourwardDataplaneValidationBackend : public dvaas::DataplaneValidationBack
   }
 
  private:
-  std::string sut_address_;
+  std::shared_ptr<grpc::Channel> channel_;
+  std::unique_ptr<dataplane::Dataplane::Stub> stub_;
 };
 
 }  // namespace fourward

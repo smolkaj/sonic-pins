@@ -37,10 +37,10 @@ PacketBridge::PacketBridge(std::string sut_address,
 PacketBridge::~PacketBridge() { Stop(); }
 
 absl::Status PacketBridge::Start() {
-  if (running_.load()) {
+  bool expected = false;
+  if (!running_.compare_exchange_strong(expected, true)) {
     return absl::FailedPreconditionError("PacketBridge already running");
   }
-  running_.store(true);
 
   // Spawn forwarding threads for both directions.
   sut_to_control_ = std::thread(&PacketBridge::ForwardLoop, this,

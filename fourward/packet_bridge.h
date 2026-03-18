@@ -30,14 +30,11 @@
 
 #include <atomic>
 #include <mutex>
-#include <memory>
 #include <string>
 #include <thread>
 
 #include "absl/status/status.h"
 #include "absl/synchronization/notification.h"
-#include "absl/strings/string_view.h"
-#include "grpcpp/channel.h"
 #include "grpcpp/client_context.h"
 
 namespace fourward {

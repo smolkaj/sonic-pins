@@ -17,9 +17,6 @@
 #include <fcntl.h>
 #include <signal.h>
 #include <sys/wait.h>
-#include <arpa/inet.h>
-#include <netinet/in.h>
-#include <sys/socket.h>
 #include <unistd.h>
 
 #include <cerrno>
@@ -41,41 +38,6 @@
 namespace fourward {
 namespace {
 
-// Finds a free TCP port by binding to port 0 and reading back the assigned
-// port. The socket is closed before returning, so there is a small TOCTOU
-// window — acceptable for tests.
-absl::StatusOr<int> FindFreePort() {
-  int sock = socket(AF_INET, SOCK_STREAM, 0);
-  if (sock < 0) {
-    return absl::InternalError(
-        absl::StrCat("socket() failed: ", std::strerror(errno)));
-  }
-  int opt = 1;
-  setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
-
-  struct sockaddr_in addr = {};
-  addr.sin_family = AF_INET;
-  addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-  addr.sin_port = 0;
-
-  if (bind(sock, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr)) < 0) {
-    close(sock);
-    return absl::InternalError(
-        absl::StrCat("bind() failed: ", std::strerror(errno)));
-  }
-
-  socklen_t len = sizeof(addr);
-  if (getsockname(sock, reinterpret_cast<struct sockaddr*>(&addr), &len) < 0) {
-    close(sock);
-    return absl::InternalError(
-        absl::StrCat("getsockname() failed: ", std::strerror(errno)));
-  }
-
-  int port = ntohs(addr.sin_port);
-  close(sock);
-  return port;
-}
-
 // Reads lines from `fd` until one matches "listening on port <N>" or the
 // deadline expires. Returns the detected port number.
 absl::StatusOr<int> WaitForReadyBanner(int fd, absl::Time deadline) {
@@ -84,29 +46,32 @@ absl::StatusOr<int> WaitForReadyBanner(int fd, absl::Time deadline) {
   fcntl(fd, F_SETFL, flags | O_NONBLOCK);
 
   std::string buffer;
+  // Position up to which we've already searched for the banner.
+  size_t search_pos = 0;
   char chunk[256];
   while (absl::Now() < deadline) {
     ssize_t n = read(fd, chunk, sizeof(chunk) - 1);
     if (n > 0) {
       chunk[n] = '\0';
       buffer.append(chunk, n);
-      // Look for the ready banner in accumulated output.
-      // Format: "P4Runtime server listening on port <N>"
-      absl::string_view view(buffer);
+      // Search only the newly appended data (plus overlap for partial match).
       constexpr absl::string_view kBanner = "listening on port ";
-      auto pos = view.find(kBanner);
+      size_t start = search_pos > kBanner.size()
+                         ? search_pos - kBanner.size()
+                         : 0;
+      absl::string_view view(buffer);
+      auto pos = view.find(kBanner, start);
       if (pos != absl::string_view::npos) {
         absl::string_view after = view.substr(pos + kBanner.size());
         int port = 0;
-        // Parse the port number (stops at first non-digit).
         if (absl::SimpleAtoi(
                 after.substr(0, after.find_first_not_of("0123456789")),
                 &port)) {
           return port;
         }
       }
+      search_pos = buffer.size();
     } else if (n == 0) {
-      // EOF — child process closed stdout.
       return absl::InternalError(
           absl::StrCat("Server exited before reporting readiness. Output:\n",
                         buffer));
@@ -156,10 +121,8 @@ void FourwardServer::Kill() {
   LOG(INFO) << "Stopping 4ward server (pid=" << pid_ << ", port=" << port_
             << ")";
 
-  // Try graceful shutdown first.
   kill(pid_, SIGTERM);
 
-  // Wait up to 5 seconds for exit.
   for (int i = 0; i < 50; ++i) {
     int status = 0;
     pid_t result = waitpid(pid_, &status, WNOHANG);
@@ -170,7 +133,6 @@ void FourwardServer::Kill() {
     absl::SleepFor(absl::Milliseconds(100));
   }
 
-  // Force kill.
   LOG(WARNING) << "4ward server (pid=" << pid_
                << ") did not exit after SIGTERM, sending SIGKILL";
   kill(pid_, SIGKILL);
@@ -179,13 +141,6 @@ void FourwardServer::Kill() {
 }
 
 absl::StatusOr<FourwardServer> FourwardServer::Start(Options options) {
-  int port = options.port;
-  if (port == 0) {
-    auto free_port = FindFreePort();
-    if (!free_port.ok()) return free_port.status();
-    port = *free_port;
-  }
-
   // Create pipe for reading child's stdout.
   int pipefd[2];
   if (pipe(pipefd) < 0) {
@@ -203,11 +158,13 @@ absl::StatusOr<FourwardServer> FourwardServer::Start(Options options) {
 
   if (pid == 0) {
     // Child process: redirect stdout to pipe, exec the server binary.
-    close(pipefd[0]);  // Close read end.
+    close(pipefd[0]);
     dup2(pipefd[1], STDOUT_FILENO);
     close(pipefd[1]);
 
-    std::string port_flag = absl::StrFormat("--port=%d", port);
+    // Always use --port=0 to let the OS pick a free port. The actual port
+    // is parsed from the server's ready banner, avoiding any TOCTOU race.
+    std::string port_flag = "--port=0";
     std::string device_id_flag =
         absl::StrFormat("--device-id=%d", options.device_id);
 
@@ -221,36 +178,30 @@ absl::StatusOr<FourwardServer> FourwardServer::Start(Options options) {
 
     std::vector<const char*> argv;
     if (absl::EndsWith(options.binary_path, ".jar")) {
-      // Deploy JAR: launch via `java -jar <path> <flags>`.
       argv = {"java", "-jar", options.binary_path.c_str(),
               port_flag.c_str(), device_id_flag.c_str(), nullptr};
     } else {
-      // Native binary: exec directly.
       argv = {options.binary_path.c_str(), port_flag.c_str(),
               device_id_flag.c_str(), nullptr};
     }
 
     execvp(argv[0], const_cast<char* const*>(argv.data()));
-    // exec failed.
     _exit(127);
   }
 
   // Parent process: read from pipe until server is ready.
-  close(pipefd[1]);  // Close write end.
+  close(pipefd[1]);
 
   absl::Time deadline = absl::Now() + options.startup_timeout;
   auto detected_port = WaitForReadyBanner(pipefd[0], deadline);
   close(pipefd[0]);
 
   if (!detected_port.ok()) {
-    // Server failed to start — clean up the child.
     kill(pid, SIGKILL);
     waitpid(pid, nullptr, 0);
     return detected_port.status();
   }
 
-  // Use the port reported by the server (may differ from requested if it
-  // chose its own).
   int actual_port = *detected_port;
   LOG(INFO) << "4ward server started: pid=" << pid
             << " address=localhost:" << actual_port

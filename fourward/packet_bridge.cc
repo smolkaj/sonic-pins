@@ -20,6 +20,7 @@
 #include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/time/time.h"
+#include "sai_p4/fixed/ids.h"
 #include "fourward/dataplane.grpc.pb.h"
 #include "fourward/dataplane.pb.h"
 #include "grpcpp/channel.h"
@@ -118,11 +119,15 @@ void PacketBridge::ForwardLoop(const std::string& from_address,
     if (!response.has_result()) continue;
     const auto& result = response.result();
 
-    // Forward each output packet to the other instance.
+    // Forward each output packet to the other instance, skipping CPU-port
+    // outputs. CPU-port traffic is consumed by the P4RuntimeService for
+    // PacketIn delivery, not forwarded across the physical link.
     for (const auto& output : result.output_packets()) {
+      if (output.dataplane_egress_port() == SAI_P4_CPU_PORT) continue;
+
       dataplane::InjectPacketRequest inject_request;
-      // Simulates a back-to-back physical link: egress on one instance
-      // becomes ingress on the other, using dataplane ports directly.
+      // The output's egress port becomes the input's ingress port on the
+      // other instance (simulating a back-to-back physical link).
       inject_request.set_dataplane_ingress_port(
           output.dataplane_egress_port());
       inject_request.set_payload(output.payload());
@@ -138,8 +143,7 @@ void PacketBridge::ForwardLoop(const std::string& from_address,
       } else {
         LOG(WARNING) << direction_label
                      << ": failed to inject packet on port "
-                     << output.dataplane_egress_port()
-                     << ": " << status.error_message();
+                     << output.dataplane_egress_port() << ": " << status.error_message();
       }
     }
   }

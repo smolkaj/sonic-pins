@@ -27,6 +27,7 @@
 #include "dvaas/dataplane_validation.h"
 #include "fourward/dataplane.grpc.pb.h"
 #include "grpcpp/channel.h"
+#include "gutil/gutil/test_artifact_writer.h"
 
 namespace fourward {
 
@@ -80,6 +81,7 @@ class FourwardDataplaneValidationBackend : public dvaas::DataplaneValidationBack
  private:
   std::shared_ptr<grpc::Channel> channel_;
   std::unique_ptr<dataplane::Dataplane::Stub> stub_;
+  mutable gutil::BazelTestArtifactWriter artifact_writer_;
 };
 
 }  // namespace fourward

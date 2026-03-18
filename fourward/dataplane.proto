@@ -1,13 +1,11 @@
 // Minimal proto definitions for 4ward's DataplaneService.
 //
-// TODO(bazel_dep): Delete this file and depend on
-// @fourward//p4runtime:dataplane_proto once 4ward is a bazel_dep.
-//
-// These are a subset of 4ward's dataplane.proto, containing only what's
-// needed for the PacketBridge and FourwardDataplaneValidationBackend.
+// These are a subset of 4ward's simulator.proto and dataplane.proto, containing
+// only what's needed for the PacketBridge and DataplaneValidationBackend.
 //
 // For the full definitions, see:
 //   https://github.com/smolkaj/4ward/blob/main/p4runtime/dataplane.proto
+//   https://github.com/smolkaj/4ward/blob/main/simulator/simulator.proto
 
 syntax = "proto3";
 
@@ -25,16 +23,16 @@ service Dataplane {
 
 message InputPacket {
   uint32 dataplane_ingress_port = 1;
+  bytes payload = 2;
   // Only populated when port translation is available.
   bytes p4rt_ingress_port = 3;
-  bytes payload = 2;
 }
 
 message OutputPacket {
   uint32 dataplane_egress_port = 1;
+  bytes payload = 2;
   // Only populated when port translation is available.
   bytes p4rt_egress_port = 3;
-  bytes payload = 2;
 }
 
 message InjectPacketRequest {
@@ -49,13 +47,12 @@ message InjectPacketRequest {
   bytes payload = 3;
 }
 
-// InjectPacket response. Omits the input (the caller already has it).
 message InjectPacketResponse {
   repeated OutputPacket output_packets = 1;
-  // trace field omitted — not needed by the bridge or backend.
+  // Opaque trace tree from 4ward's simulator (for debugging).
+  bytes trace = 2;
 }
 
-// Result bundle for SubscribeResults: input + outputs.
 message ProcessPacketResult {
   InputPacket input_packet = 1;
   repeated OutputPacket output_packets = 2;

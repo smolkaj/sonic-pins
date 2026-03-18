@@ -30,7 +30,6 @@
 #include "absl/strings/match.h"
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
-#include "fourward/runfiles.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
 #include "absl/time/clock.h"
@@ -38,8 +37,6 @@
 
 namespace fourward {
 namespace {
-
-constexpr char kServerJar[] = "fourward/prebuilt/p4runtime_server.jar";
 
 // Reads lines from `fd` until one matches "listening on port <N>" or the
 // deadline expires. Returns the detected port number.
@@ -179,13 +176,12 @@ absl::StatusOr<FourwardServer> FourwardServer::Start(Options options) {
     unsetenv("JAVA_RUNFILES");
     unsetenv("TEST_SRCDIR");
 
-    std::string binary = BazelRunfile(kServerJar);
     std::vector<const char*> argv;
-    if (absl::EndsWith(binary, ".jar")) {
-      argv = {"java", "-jar", binary.c_str(),
+    if (absl::EndsWith(options.binary_path, ".jar")) {
+      argv = {"java", "-jar", options.binary_path.c_str(),
               port_flag.c_str(), device_id_flag.c_str(), nullptr};
     } else {
-      argv = {binary.c_str(), port_flag.c_str(),
+      argv = {options.binary_path.c_str(), port_flag.c_str(),
               device_id_flag.c_str(), nullptr};
     }
 

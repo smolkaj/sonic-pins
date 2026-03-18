@@ -21,8 +21,11 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/escaping.h"
+#include "absl/strings/str_cat.h"
 #include "dvaas/test_vector.h"
 #include "dvaas/test_vector.pb.h"
+#include "gutil/gutil/proto.h"
+#include "gutil/gutil/test_artifact_writer.h"
 #include "fourward/dataplane.grpc.pb.h"
 #include "fourward/dataplane.pb.h"
 #include "grpcpp/client_context.h"
@@ -62,7 +65,8 @@ FourwardDataplaneValidationBackend::SynthesizePackets(
   // The payload will be replaced with a test tag by GeneratePacketTestVectors.
   packetlib::Packet packet_proto;
   auto* eth = packet_proto.add_headers()->mutable_ethernet_header();
-  eth->set_ethernet_destination("ff:ff:ff:ff:ff:ff");
+  // Unicast MAC required: SAI P4 gates L3 routing on IS_UNICAST_MAC(dst_addr).
+  eth->set_ethernet_destination("00:01:02:03:04:05");
   eth->set_ethernet_source("00:00:00:00:00:01");
   eth->set_ethertype("0x0800");
 
@@ -140,30 +144,67 @@ FourwardDataplaneValidationBackend::GeneratePacketTestVectors(
     *input_packet->mutable_parsed() = parsed;
 
     dataplane::InjectPacketRequest inject_request;
+    // Use P4RT port encoding for consistency with table entries (which are
+    // installed via P4Runtime and go through 4ward's port translator).
     inject_request.set_p4rt_ingress_port(ingress_port);
     inject_request.set_payload(tagged_packet);
 
+    LOG(INFO) << "InjectPacket request: p4rt_ingress_port=\""
+              << absl::BytesToHexString(inject_request.p4rt_ingress_port())
+              << "\" (" << inject_request.p4rt_ingress_port().size()
+              << " bytes), payload=" << tagged_packet.size() << " bytes";
+
     grpc::ClientContext ctx;
     dataplane::InjectPacketResponse inject_response;
-    RETURN_IF_ERROR(gutil::GrpcStatusToAbslStatus(
-        stub_->InjectPacket(&ctx, inject_request, &inject_response)))
+    auto grpc_status =
+        stub_->InjectPacket(&ctx, inject_request, &inject_response);
+    LOG(INFO) << "InjectPacket gRPC status: code=" << grpc_status.error_code()
+              << " message=\"" << grpc_status.error_message() << "\""
+              << " outputs=" << inject_response.output_packets().size()
+              << " trace_bytes=" << inject_response.trace().size();
+    // Save trace as a Bazel test artifact for post-mortem analysis.
+    if (auto status = artifact_writer_.StoreTestArtifact(
+            absl::StrCat("fourward_trace_", test_id, ".bin"),
+            inject_response.trace());
+        !status.ok()) {
+      LOG(WARNING) << "Failed to save trace artifact: " << status;
+    }
+    RETURN_IF_ERROR(gutil::GrpcStatusToAbslStatus(grpc_status))
         << "injecting packet into 4ward for prediction";
 
     auto* output = test_vector.add_acceptable_outputs();
     for (const auto& out_pkt : inject_response.output_packets()) {
       auto* predicted = output->add_packets();
-      predicted->set_port(out_pkt.p4rt_egress_port());
+      // Use P4RT port encoding when available (consistent with table entries).
+      // Fall back to dataplane port — 4ward's InjectPacket response doesn't
+      // always populate p4rt_egress_port even with a loaded pipeline.
+      // TODO(4ward): Always populate p4rt_egress_port in InjectPacketResponse.
+      if (!out_pkt.p4rt_egress_port().empty()) {
+        predicted->set_port(out_pkt.p4rt_egress_port());
+      } else {
+        predicted->set_port(absl::StrCat(out_pkt.dataplane_egress_port()));
+      }
       const std::string& out_payload = out_pkt.payload();
       predicted->set_hex(absl::BytesToHexString(out_payload));
       *predicted->mutable_parsed() = packetlib::ParsePacket(out_payload);
     }
 
-    if (inject_response.output_packets().empty()) {
-      LOG(INFO) << "Test #" << test_id << ": predicted DROP";
-    } else {
-      LOG(INFO) << "Test #" << test_id << ": predicted "
-                << inject_response.output_packets().size() << " output(s)";
+    // Guard against silent DROP predictions. If the synthesized packet was
+    // not expected to be dropped but InjectPacket returned zero outputs,
+    // something is wrong (pipeline not loaded, entries missing, etc.).
+    if (inject_response.output_packets().empty() &&
+        !synthesized.drop_expected()) {
+      return absl::InternalError(absl::StrCat(
+          "Test #", test_id,
+          ": InjectPacket returned zero output packets, but the synthesized "
+          "packet was not expected to be dropped. This likely indicates a "
+          "missing pipeline or table entries."));
     }
+
+    LOG(INFO) << "Test #" << test_id << ": predicted "
+              << inject_response.output_packets().size() << " output(s)";
+    LOG(INFO) << "Test vector #" << test_id << ":\n"
+              << gutil::PrintTextProto(test_vector);
 
     test_vectors[test_id] = std::move(test_vector);
   }

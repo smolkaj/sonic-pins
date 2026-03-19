@@ -1,0 +1,70 @@
+load("@fourward//bazel:p4c.bzl", "fourward_compile")
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_test.bzl", "cc_test")
+
+package(default_visibility = ["//visibility:public"])
+
+# =============================================================================
+# FourwardServer — RAII subprocess manager for 4ward P4Runtime servers
+# =============================================================================
+
+cc_library(
+    name = "fourward_server",
+    srcs = ["fourward_server.cc"],
+    hdrs = ["fourward_server.h"],
+    deps = [
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:str_format",
+        "@abseil-cpp//absl/time",
+    ],
+)
+
+# =============================================================================
+# FourwardSwitch — thinkit::Switch adapter for a 4ward server
+# =============================================================================
+
+cc_library(
+    name = "fourward_switch",
+    srcs = ["fourward_switch.cc"],
+    hdrs = ["fourward_switch.h"],
+    deps = [
+        "@abseil-cpp//absl/status:statusor",
+        "@grpc//:grpc++",
+        "@openconfig_gnmi//proto/gnmi:gnmi_cc_grpc_proto",
+        "@p4runtime//proto/p4/v1:p4runtime_cc_grpc",
+        "//thinkit:switch",
+    ],
+)
+
+# =============================================================================
+# Compiled SAI P4 middleblock for 4ward
+# =============================================================================
+
+fourward_compile(
+    name = "sai_middleblock_fourward",
+    src = "//sai_p4/instantiations/google:middleblock.p4",
+    extra_srcs = ["//sai_p4:sai_p4_srcs"],
+    includes = ["//sai_p4:v1model_sai"],
+)
+
+# =============================================================================
+# Tests
+# =============================================================================
+
+cc_test(
+    name = "fourward_server_test",
+    srcs = ["fourward_server_test.cc"],
+    data = [
+        "@fourward//p4runtime:p4runtime_server",
+    ],
+    deps = [
+        ":fourward_server",
+        "@abseil-cpp//absl/strings",
+        "@bazel_tools//tools/cpp/runfiles",
+        "@googletest//:gtest_main",
+        "@grpc//:grpc++",
+        "@p4runtime//proto/p4/v1:p4runtime_cc_grpc",
+    ],
+)

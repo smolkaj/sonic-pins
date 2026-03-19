@@ -46,6 +46,7 @@ bazel_dep(name = "rules_go", version = "0.60.0")
 bazel_dep(name = "rules_license", version = "1.0.0")
 bazel_dep(name = "rules_pkg", version = "1.2.0")
 bazel_dep(name = "rules_proto", version = "7.1.0")
+bazel_dep(name = "fourward", version = "0.1.0")
 bazel_dep(name = "z3", version = "4.15.2")
 
 # Boost modules (individual Bzlmod modules replace the monolithic @boost).
@@ -61,6 +62,14 @@ git_override(
     module_name = "p4_infra",
     remote = "https://github.com/smolkaj/p4-infra.git",
     commit = "3f733593d4c2657ad8d8bc9d09cedab86a2eba94",
+)
+
+# 4ward P4 simulator — reference model for DVaaS output prediction and traces.
+# TODO: Switch to BCR once 4ward is registered.
+git_override(
+    module_name = "fourward",
+    remote = "https://github.com/smolkaj/4ward.git",
+    commit = "137389b2f2f45c731d9804af9aeb43b12d3569f8",
 )
 
 # -- Non-BCR dependencies (via module extension) ------------------------------

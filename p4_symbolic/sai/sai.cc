@@ -32,7 +32,8 @@
 #include "gutil/collections.h"
 #include "gutil/ordered_map.h"
 #include "gutil/status.h"
-#include "p4_infra/p4_pdpi/ir.pb.h"
+#include "gutil/ordered_map.h"
+#include "p4_pdpi/ir.pb.h"
 #include "p4_symbolic/ir/ir.h"
 #include "p4_symbolic/ir/ir.pb.h"
 #include "p4_symbolic/symbolic/context.h"
@@ -179,7 +180,7 @@ absl::Status AddConstraintsForP4ConstraintsAnnotations(
 absl::Status AddConstraintsToForbidVrfZero(symbolic::SolverState &state) {
   // Restrict the values of all header fields with type `vrf_id_t` to non-zero.
   for (const auto &[field_name, type_name] :
-       AsOrderedView(state.translator.fields_p4runtime_type)) {
+       gutil::AsOrderedView(state.translator.fields_p4runtime_type)) {
     if (type_name == kVrfIdTypeName) {
       ASSIGN_OR_RETURN(z3::expr value,
                        state.context.ingress_headers.Get(field_name));
@@ -241,7 +242,7 @@ absl::Status AddConstraintsToForbidVrfZero(symbolic::SolverState &state) {
         const ir::Action &action = it->second;
 
         for (const auto &[param_name, param_definition] :
-             AsOrderedView(action.action_definition().params_by_name())) {
+             gutil::AsOrderedView(action.action_definition().params_by_name())) {
           const std::string &type_name =
               param_definition.param().type_name().name();
 

@@ -41,8 +41,9 @@
 #include "p4_fuzzer/fuzz_util.h"
 #include "p4_fuzzer/fuzzer_config.h"
 #include "p4_fuzzer/switch_state.h"
-#include "p4_infra/p4_pdpi/ir.pb.h"
-#include "p4_infra/p4_pdpi/ir_properties.h"
+#include "gutil/ordered_map.h"
+#include "p4_pdpi/ir.pb.h"
+#include "p4_pdpi/ir_properties.h"
 
 namespace p4_fuzzer {
 namespace {

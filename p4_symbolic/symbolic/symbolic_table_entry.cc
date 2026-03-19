@@ -37,7 +37,8 @@
 #include "gutil/status.h"
 #include "p4/config/v1/p4info.pb.h"
 #include "p4/v1/p4runtime.pb.h"
-#include "p4_infra/p4_pdpi/ir.pb.h"
+#include "gutil/ordered_map.h"
+#include "p4_pdpi/ir.pb.h"
 #include "p4_symbolic/ir/ir.h"
 #include "p4_symbolic/ir/ir.pb.h"
 #include "p4_symbolic/symbolic/operators.h"
@@ -682,7 +683,7 @@ absl::Status InitializeSymbolicActions(
 
     // Create a symbolic variable for each action parameter.
     for (const auto &[param_name, param_definition] :
-         AsOrderedView(action.action_definition().params_by_name())) {
+         gutil::AsOrderedView(action.action_definition().params_by_name())) {
       ASSIGN_OR_RETURN(z3::expr action_param,
                        GetSymbolicActionParameter(symbolic_entry, param_name,
                                                   action, table, z3_context));
@@ -859,7 +860,7 @@ absl::StatusOr<ir::ConcreteTableEntry> ExtractConcreteEntryFromModel(
 
     // Set action parameters.
     for (const auto &[param_name, param_definition] :
-         AsOrderedView(action.action_definition().params_by_name())) {
+         gutil::AsOrderedView(action.action_definition().params_by_name())) {
       // Set action parameter name.
       pdpi::IrActionInvocation::IrActionParam &ir_param =
           *result_entry.mutable_action()->add_params();

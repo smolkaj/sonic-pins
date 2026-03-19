@@ -26,6 +26,7 @@
 #include "absl/types/optional.h"
 #include "gutil/ordered_map.h"
 #include "gutil/status.h"
+#include "gutil/ordered_map.h"
 #include "p4_symbolic/ir/ir.h"
 #include "p4_symbolic/ir/ir.pb.h"
 #include "p4_symbolic/packet_synthesizer/packet_synthesizer.pb.h"

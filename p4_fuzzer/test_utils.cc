@@ -26,7 +26,8 @@
 #include "p4/v1/p4runtime.pb.h"
 #include "p4_fuzzer/fuzzer_config.h"
 #include "p4_fuzzer/switch_state.h"
-#include "p4_infra/p4_pdpi/ir.pb.h"
+#include "gutil/ordered_map.h"
+#include "p4_pdpi/ir.pb.h"
 
 namespace p4_fuzzer {
 
@@ -56,7 +57,7 @@ GetAMatchFieldDefinitionWithMatchType(
     const pdpi::IrTableDefinition& table_definition,
     p4::config::v1::MatchField::MatchType match_type) {
   for (const auto& [unused, match_field] :
-       AsOrderedView(table_definition.match_fields_by_id())) {
+       gutil::AsOrderedView(table_definition.match_fields_by_id())) {
     if (match_field.match_field().match_type() == match_type) {
       return match_field;
     }
@@ -71,7 +72,7 @@ absl::StatusOr<pdpi::IrTableDefinition> GetATableDefinitionWithMatchType(
     const FuzzerTestState& fuzzer_state,
     p4::config::v1::MatchField::MatchType match_type) {
   for (const auto& [unused, table] :
-       AsOrderedView(fuzzer_state.config.GetIrP4Info().tables_by_id())) {
+       gutil::AsOrderedView(fuzzer_state.config.GetIrP4Info().tables_by_id())) {
     if (GetAMatchFieldDefinitionWithMatchType(table, match_type).ok()) {
       return table;
     }
@@ -83,7 +84,7 @@ absl::StatusOr<pdpi::IrTableDefinition> GetATableDefinitionWithMatchType(
 
 absl::StatusOr<pdpi::IrTableDefinition> GetAOneShotTableDefinition(
     const pdpi::IrP4Info& info) {
-  for (const auto& [unused, table] : AsOrderedView(info.tables_by_id())) {
+  for (const auto& [unused, table] : gutil::AsOrderedView(info.tables_by_id())) {
     if (table.uses_oneshot()) {
       return table;
     }

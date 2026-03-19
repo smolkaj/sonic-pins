@@ -13,6 +13,7 @@
 #include "gutil/proto.h"
 #include "gutil/ordered_map.h"
 #include "gutil/status.h"
+#include "gutil/ordered_map.h"
 #include "tests/qos/gnmi_parsers.h"
 
 // -- Pretty printers for golden testing ---------------------------------------

@@ -1,4 +1,4 @@
-load("@fourward//bazel:p4c.bzl", "fourward_compile")
+load("@fourward//bazel:fourward_pipeline.bzl", "fourward_pipeline")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("@rules_cc//cc:cc_test.bzl", "cc_test")
 
@@ -42,11 +42,10 @@ cc_library(
 # Compiled SAI P4 middleblock for 4ward
 # =============================================================================
 
-# Compile SAI P4 middleblock for 4ward.
 # The v1model_sai.p4 include provides typed ports with @p4runtime_translation;
 # its -I directory shadows stock v1model.p4. The other includes resolve
 # roles.h, ids.h, bitwidths.p4, and the fixed/*.p4 files.
-fourward_compile(
+fourward_pipeline(
     name = "sai_middleblock_fourward",
     src = "//sai_p4/instantiations/google:middleblock.p4",
     extra_srcs = ["//sai_p4:sai_p4_srcs"],

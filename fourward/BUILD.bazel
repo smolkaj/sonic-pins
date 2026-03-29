@@ -1,4 +1,5 @@
 load("@fourward//bazel:fourward_pipeline.bzl", "fourward_pipeline")
+load("@gutil//gutil:diff_test.bzl", "cmd_diff_test")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("@rules_cc//cc:cc_test.bzl", "cc_test")
 
@@ -92,6 +93,24 @@ cc_test(
         "@googletest//:gtest_main",
         "@gutil//gutil:proto_matchers",
     ],
+)
+
+cc_binary(
+    name = "trace_conversion_golden_test_runner",
+    srcs = ["trace_conversion_golden_test_runner.cc"],
+    deps = [
+        ":trace_conversion",
+        "//dvaas:packet_trace_cc_proto",
+        "@fourward//simulator:simulator_cc_proto",
+        "@protobuf//:protobuf",
+    ],
+)
+
+cmd_diff_test(
+    name = "trace_conversion_golden_test",
+    actual_cmd = "$(execpath :trace_conversion_golden_test_runner)",
+    expected = "trace_conversion_test.expected",
+    tools = [":trace_conversion_golden_test_runner"],
 )
 
 cc_test(

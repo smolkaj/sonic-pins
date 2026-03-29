@@ -43,7 +43,6 @@ void AppendTraceEvent(const fourward::sim::TraceEvent& event,
       replication.set_number_of_packets_replicated(1);
       break;
     }
-    // These event types have no DVaaS equivalent.
     case fourward::sim::TraceEvent::kParserTransition:
     case fourward::sim::TraceEvent::kActionExecution:
     case fourward::sim::TraceEvent::kBranch:

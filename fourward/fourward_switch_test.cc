@@ -1,5 +1,3 @@
-// Unit tests for FourwardSwitch.
-
 #include "fourward/fourward_switch.h"
 
 #include "gtest/gtest.h"

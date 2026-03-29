@@ -1,6 +1,3 @@
-// E2E test: start a 4ward server, load SAI P4, inject packets, and verify
-// output predictions.
-
 #include "fourward/fourward_oracle.h"
 
 #include <fstream>
@@ -20,7 +17,6 @@ namespace {
 
 using ::bazel::tools::cpp::runfiles::Runfiles;
 
-// Reads a binary proto file into a ForwardingPipelineConfig.
 p4::v1::ForwardingPipelineConfig LoadPipelineConfig() {
   std::string error;
   std::unique_ptr<Runfiles> runfiles(Runfiles::CreateForTest(&error));
@@ -54,19 +50,15 @@ TEST(FourwardOracleTest, PredictDropsPacketWithNoEntries) {
   ASSERT_OK_AND_ASSIGN(std::unique_ptr<FourwardOracle> oracle,
                        FourwardOracle::Create(config));
 
-  // Inject a minimal Ethernet frame with no matching entries installed.
-  // SAI P4 should drop it (no forwarding rules).
   std::string ethernet_frame(64, '\0');
   ASSERT_OK_AND_ASSIGN(
       PacketPrediction prediction,
       oracle->Predict({.ingress_port = "1", .payload = ethernet_frame}));
 
-  // With no entries, the packet should be dropped (no output packets).
   EXPECT_TRUE(prediction.output_packets.empty())
       << "Expected drop, got " << prediction.output_packets.size()
       << " output packets";
 
-  // Trace should be non-empty.
   EXPECT_GT(prediction.trace.events_size(), 0);
 }
 
@@ -75,7 +67,6 @@ TEST(FourwardOracleTest, PredictAllBatchProcessing) {
   ASSERT_OK_AND_ASSIGN(std::unique_ptr<FourwardOracle> oracle,
                        FourwardOracle::Create(config));
 
-  // Inject 10 packets in a batch.
   std::string ethernet_frame(64, '\0');
   std::vector<PacketInput> packets;
   for (int i = 0; i < 10; ++i) {

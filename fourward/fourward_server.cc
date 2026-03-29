@@ -38,13 +38,10 @@ absl::StatusOr<std::string> ResolveFourwardServerBinary() {
   return runfiles->Rlocation("fourward/p4runtime/p4runtime_server");
 }
 
-// The 4ward P4RuntimeServer prints this banner when ready.
 constexpr absl::string_view kReadyBanner = "listening on port ";
 
-// Parses the port number from the server's ready banner.
-// The banner format is: "... listening on port <port>"
 absl::StatusOr<int> ParsePortFromBanner(absl::string_view line) {
-  auto pos = line.find(kReadyBanner);
+  size_t pos = line.find(kReadyBanner);
   if (pos == absl::string_view::npos) {
     return absl::NotFoundError(
         absl::StrCat("Ready banner not found in: ", line));
@@ -58,13 +55,10 @@ absl::StatusOr<int> ParsePortFromBanner(absl::string_view line) {
   return port;
 }
 
-// Reads lines from `fd` until the ready banner is found or timeout expires.
-// Returns the port number from the banner.
 absl::StatusOr<int> WaitForReadyBanner(int fd, absl::Duration timeout) {
   absl::Time deadline = absl::Now() + timeout;
   std::string buffer;
 
-  // Set non-blocking so we can poll with a timeout.
   int flags = fcntl(fd, F_GETFL, 0);
   fcntl(fd, F_SETFL, flags | O_NONBLOCK);
 
@@ -74,16 +68,14 @@ absl::StatusOr<int> WaitForReadyBanner(int fd, absl::Duration timeout) {
     if (n > 0) {
       chunk[n] = '\0';
       buffer.append(chunk, n);
-      // Check each line for the ready banner.
       size_t pos;
       while ((pos = buffer.find('\n')) != std::string::npos) {
         std::string line = buffer.substr(0, pos);
         buffer.erase(0, pos + 1);
-        auto port = ParsePortFromBanner(line);
+        absl::StatusOr<int> port = ParsePortFromBanner(line);
         if (port.ok()) return *port;
       }
-      // Check the remaining buffer (banner might not end with newline).
-      auto port = ParsePortFromBanner(buffer);
+      absl::StatusOr<int> port = ParsePortFromBanner(buffer);
       if (port.ok()) return *port;
     } else if (n == 0) {
       return absl::InternalError("Server process closed stdout unexpectedly");
@@ -97,8 +89,6 @@ absl::StatusOr<int> WaitForReadyBanner(int fd, absl::Duration timeout) {
       "4ward server did not produce ready banner within %s", timeout));
 }
 
-// Clears Bazel-specific environment variables that could interfere with the
-// child process.
 void ClearBazelEnvironment() {
   unsetenv("BUILD_WORKSPACE_DIRECTORY");
   unsetenv("BUILD_WORKING_DIRECTORY");
@@ -137,10 +127,8 @@ FourwardServer::~FourwardServer() { Kill(); }
 void FourwardServer::Kill() {
   if (process_id_ <= 0) return;
 
-  // Try graceful shutdown first.
   kill(process_id_, SIGTERM);
 
-  // Wait up to 5 seconds for the process to exit.
   absl::Time deadline = absl::Now() + absl::Seconds(5);
   while (absl::Now() < deadline) {
     int status;
@@ -152,7 +140,6 @@ void FourwardServer::Kill() {
     absl::SleepFor(absl::Milliseconds(100));
   }
 
-  // Force kill if still running.
   kill(process_id_, SIGKILL);
   waitpid(process_id_, nullptr, 0);
   process_id_ = -1;
@@ -162,7 +149,6 @@ absl::StatusOr<FourwardServer> FourwardServer::Start(
     uint64_t device_id, absl::Duration startup_timeout) {
   ASSIGN_OR_RETURN(std::string binary_path, ResolveFourwardServerBinary());
 
-  // Create a pipe for the child's stdout.
   int stdout_pipe[2];
   if (pipe(stdout_pipe) != 0) {
     return absl::InternalError(
@@ -198,18 +184,16 @@ absl::StatusOr<FourwardServer> FourwardServer::Start(
     };
 
     execv(binary_path.c_str(), const_cast<char* const*>(argv.data()));
-    // If execv returns, it failed.
     _exit(127);
   }
 
   // Parent process.
   close(stdout_pipe[1]);  // Close write end.
 
-  auto port = WaitForReadyBanner(stdout_pipe[0], startup_timeout);
+  absl::StatusOr<int> port = WaitForReadyBanner(stdout_pipe[0], startup_timeout);
   close(stdout_pipe[0]);
 
   if (!port.ok()) {
-    // Clean up the child process.
     kill(pid, SIGKILL);
     waitpid(pid, nullptr, 0);
     return port.status();

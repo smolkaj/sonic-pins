@@ -35,29 +35,21 @@ class FourwardServer {
       uint64_t device_id = 1,
       absl::Duration startup_timeout = absl::Seconds(15));
 
-  // Movable but not copyable.
   FourwardServer(FourwardServer&& other);
   FourwardServer& operator=(FourwardServer&& other);
   FourwardServer(const FourwardServer&) = delete;
   FourwardServer& operator=(const FourwardServer&) = delete;
 
-  // Kills the server subprocess (SIGTERM, then SIGKILL after 5s).
   ~FourwardServer();
 
-  // Returns "localhost:<port>" — the address to connect gRPC clients to.
   const std::string& Address() const { return address_; }
-
-  // Returns the port the server is listening on.
   int Port() const { return port_; }
-
-  // Returns the device ID the server was started with.
   uint64_t DeviceId() const { return device_id_; }
 
  private:
   FourwardServer(pid_t pid, int port, uint64_t device_id);
   void Kill();
 
-  // PID of the child process, or -1 if no process is running.
   pid_t process_id_ = -1;
   int port_ = 0;
   uint64_t device_id_ = 0;

@@ -6,6 +6,7 @@
 
 #include "absl/status/statusor.h"
 #include "fourward/fourward_server.h"
+#include "gutil/status.h"
 #include "grpcpp/create_channel.h"
 #include "grpcpp/security/credentials.h"
 #include "p4/v1/p4runtime.grpc.pb.h"
@@ -16,9 +17,8 @@ FourwardSwitch::FourwardSwitch(FourwardServer server)
     : server_(std::move(server)) {}
 
 absl::StatusOr<FourwardSwitch> FourwardSwitch::Create(uint32_t device_id) {
-  absl::StatusOr<FourwardServer> server = FourwardServer::Start(device_id);
-  if (!server.ok()) return server.status();
-  return FourwardSwitch(std::move(*server));
+  ASSIGN_OR_RETURN(FourwardServer server, FourwardServer::Start(device_id));
+  return FourwardSwitch(std::move(server));
 }
 
 absl::StatusOr<std::unique_ptr<p4::v1::P4Runtime::StubInterface>>

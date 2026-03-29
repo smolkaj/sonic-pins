@@ -9,7 +9,6 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
-#include "absl/strings/string_view.h"
 #include "fourward/fourward_server.h"
 #include "grpcpp/channel.h"
 #include "grpcpp/client_context.h"
@@ -72,12 +71,10 @@ absl::StatusOr<std::unique_ptr<FourwardOracle>> FourwardOracle::Create(
   std::unique_ptr<p4::v1::P4Runtime::StubInterface> stub =
       p4::v1::P4Runtime::NewStub(channel);
 
-  // Create P4Runtime session (handles arbitration).
   ASSIGN_OR_RETURN(std::unique_ptr<p4_runtime::P4RuntimeSession> session,
                    p4_runtime::P4RuntimeSession::Create(
                        std::move(stub), device_id));
 
-  // Load the pipeline.
   RETURN_IF_ERROR(p4_runtime::SetMetadataAndSetForwardingPipelineConfig(
       session.get(),
       p4::v1::SetForwardingPipelineConfigRequest::RECONCILE_AND_COMMIT,
@@ -109,7 +106,7 @@ absl::StatusOr<std::vector<PacketPrediction>> FourwardOracle::PredictAll(
   std::unique_ptr<Dataplane::StubInterface> stub =
       Dataplane::NewStub(channel_);
 
-  // Subscribe to results before injecting — ensures no results are missed.
+  // Subscribe before injecting to avoid missing results.
   grpc::ClientContext results_context;
   std::unique_ptr<grpc::ClientReaderInterface<SubscribeResultsResponse>>
       results_reader = stub->SubscribeResults(
@@ -120,7 +117,6 @@ absl::StatusOr<std::vector<PacketPrediction>> FourwardOracle::PredictAll(
     return absl::InternalError("SubscribeResults did not confirm activation");
   }
 
-  // Stream all packets via InjectPackets (processed concurrently by server).
   {
     grpc::ClientContext context;
     InjectPacketsResponse response;
@@ -143,7 +139,6 @@ absl::StatusOr<std::vector<PacketPrediction>> FourwardOracle::PredictAll(
     }
   }
 
-  // Collect one result per injected packet.
   std::vector<PacketPrediction> predictions;
   predictions.reserve(packets.size());
   while (results_reader->Read(&response)) {

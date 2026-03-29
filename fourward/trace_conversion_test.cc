@@ -1,5 +1,3 @@
-// Unit tests for TraceTree → PacketTrace conversion.
-
 #include "fourward/trace_conversion.h"
 
 #include "dvaas/packet_trace.pb.h"
@@ -13,16 +11,12 @@ namespace {
 
 using ::gutil::EqualsProto;
 
-// -- Helpers ------------------------------------------------------------------
-
 fourward::sim::TraceTree ParseTraceTree(const std::string& textproto) {
   fourward::sim::TraceTree tree;
   EXPECT_TRUE(google::protobuf::TextFormat::ParseFromString(textproto, &tree))
       << "Failed to parse TraceTree: " << textproto;
   return tree;
 }
-
-// -- Basic event mapping tests ------------------------------------------------
 
 TEST(TraceConversionTest, EmptyTraceTreeProducesEmptyPacketTrace) {
   PacketTrace trace = FourwardTraceTreeToDvaasPacketTrace(fourward::sim::TraceTree());
@@ -107,8 +101,6 @@ TEST(TraceConversionTest, CloneEvent) {
             1);
 }
 
-// -- Outcome tests ------------------------------------------------------------
-
 TEST(TraceConversionTest, DropOutcome) {
   fourward::sim::TraceTree tree = ParseTraceTree(R"pb(
     packet_outcome { drop {} }
@@ -134,8 +126,6 @@ TEST(TraceConversionTest, OutputOutcome) {
   EXPECT_EQ(trace.events(0).transmit().port(), "Ethernet0");
   EXPECT_EQ(trace.events(0).transmit().packet_size(), 5);
 }
-
-// -- Ignored event types (should not produce DVaaS events) --------------------
 
 TEST(TraceConversionTest, ParserTransitionsAreIgnored) {
   fourward::sim::TraceTree tree = ParseTraceTree(R"pb(
@@ -187,8 +177,6 @@ TEST(TraceConversionTest, ExternCallsAreIgnored) {
   PacketTrace trace = FourwardTraceTreeToDvaasPacketTrace(tree);
   EXPECT_EQ(trace.events_size(), 0);
 }
-
-// -- Fork tests ---------------------------------------------------------------
 
 TEST(TraceConversionTest, CloneForkFollowsAllBranches) {
   fourward::sim::TraceTree tree = ParseTraceTree(R"pb(
@@ -274,8 +262,6 @@ TEST(TraceConversionTest, ActionSelectorForkWithNoBranchesProducesNothing) {
   PacketTrace trace = FourwardTraceTreeToDvaasPacketTrace(tree);
   EXPECT_EQ(trace.events_size(), 0);
 }
-
-// -- Composite traces ---------------------------------------------------------
 
 TEST(TraceConversionTest, FullDropTrace) {
   fourward::sim::TraceTree tree = ParseTraceTree(R"pb(
@@ -397,8 +383,6 @@ TEST(TraceConversionTest, NestedForksAreFlattened) {
   EXPECT_EQ(trace.events(2).transmit().port(), "2");
   EXPECT_EQ(trace.events(3).transmit().port(), "3");
 }
-
-// -- bmv2_textual_log should be empty -----------------------------------------
 
 TEST(TraceConversionTest, Bmv2TextualLogIsEmpty) {
   fourward::sim::TraceTree tree = ParseTraceTree(R"pb(

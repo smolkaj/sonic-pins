@@ -42,6 +42,7 @@ cc_library(
         "@abseil-cpp//absl/strings",
         "@fourward//p4runtime:dataplane_cc_proto",
         "@grpc//:grpc++",
+        "@gutil//gutil:status",
         "@p4_infra//p4_pdpi:ir_cc_proto",
         "@p4runtime//proto/p4/v1:p4runtime_cc_grpc",
         "@p4runtime//proto/p4/v1:p4runtime_cc_proto",

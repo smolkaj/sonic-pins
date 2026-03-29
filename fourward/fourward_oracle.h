@@ -8,9 +8,14 @@
 //   ASSERT_OK_AND_ASSIGN(auto oracle,
 //       FourwardOracle::Create(binary_path, fourward_config));
 //   ASSERT_OK(oracle->InstallEntities(ir_entities, ir_p4info));
+//
+//   // Single packet:
 //   ASSERT_OK_AND_ASSIGN(auto prediction,
 //       oracle->Predict(ingress_port, packet_bytes));
-//   // prediction.output_packets, prediction.trace_tree
+//
+//   // Batch (streaming — much faster for many packets):
+//   ASSERT_OK_AND_ASSIGN(auto predictions,
+//       oracle->PredictAll(packets));
 
 #ifndef PINS_FOURWARD_FOURWARD_ORACLE_H_
 #define PINS_FOURWARD_FOURWARD_ORACLE_H_
@@ -32,7 +37,6 @@ namespace fourward {
 
 // Predicted output for a single injected packet.
 struct PacketPrediction {
-  // Output packets with their egress ports (P4RT encoding).
   struct OutputPacket {
     std::string port;   // P4RT port ID (string encoding for SAI P4).
     std::string bytes;  // Raw packet bytes.
@@ -40,17 +44,21 @@ struct PacketPrediction {
   std::vector<OutputPacket> output_packets;
 
   // Structured trace of packet processing (4ward TraceTree in text proto).
-  // We pass this as a string to avoid a proto dependency on 4ward's
-  // simulator.proto in the DVaaS frontend. The conversion to DVaaS's
-  // PacketTrace happens in trace_conversion.h.
+  // Passed as a string to avoid pulling 4ward's simulator.proto into the
+  // DVaaS frontend. Conversion to DVaaS PacketTrace happens separately.
   std::string trace_tree_textproto;
+};
+
+// A packet to predict, with its ingress port (P4RT encoding).
+struct PacketInput {
+  std::string ingress_port;  // P4RT port ID.
+  std::string payload;       // Raw packet bytes.
 };
 
 // Manages a 4ward server and provides packet output prediction.
 class FourwardOracle {
  public:
-  // Creates a FourwardOracle: starts a 4ward server subprocess and loads
-  // the given pipeline config.
+  // Starts a 4ward server subprocess and loads the given pipeline config.
   static absl::StatusOr<std::unique_ptr<FourwardOracle>> Create(
       const std::string& server_binary_path,
       const p4::v1::ForwardingPipelineConfig& pipeline_config,
@@ -60,23 +68,26 @@ class FourwardOracle {
   absl::Status InstallEntities(const pdpi::IrEntities& ir_entities,
                                const pdpi::IrP4Info& ir_p4info);
 
-  // Predicts the output of a packet injected on the given ingress port.
-  // `ingress_port` uses P4RT encoding (string for SAI P4).
+  // Predicts the output of a single packet. Convenience wrapper around
+  // PredictAll for one-off use.
   absl::StatusOr<PacketPrediction> Predict(absl::string_view ingress_port,
                                            absl::string_view packet_bytes);
 
-  // Returns the address of the underlying 4ward server.
+  // Predicts outputs for a batch of packets using the streaming InjectPackets
+  // + SubscribeResults RPCs. Results are returned in input order.
+  absl::StatusOr<std::vector<PacketPrediction>> PredictAll(
+      const std::vector<PacketInput>& packets);
+
   const std::string& ServerAddress() const { return server_.Address(); }
 
  private:
   FourwardOracle(FourwardServer server,
-                 std::unique_ptr<p4::v1::P4Runtime::StubInterface> stub,
+                 std::shared_ptr<grpc::Channel> channel,
                  uint64_t device_id);
 
   FourwardServer server_;
-  std::unique_ptr<p4::v1::P4Runtime::StubInterface> stub_;
+  std::shared_ptr<grpc::Channel> channel_;
   uint64_t device_id_;
-  uint64_t election_id_ = 1;
 };
 
 }  // namespace fourward

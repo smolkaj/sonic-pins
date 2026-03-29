@@ -20,7 +20,7 @@
 #include "absl/status/statusor.h"
 #include "absl/time/time.h"
 
-namespace fourward {
+namespace dvaas {
 
 class FourwardServer {
  public:
@@ -63,6 +63,6 @@ class FourwardServer {
   std::string address_;
 };
 
-}  // namespace fourward
+}  // namespace dvaas
 
 #endif  // PINS_FOURWARD_FOURWARD_SERVER_H_

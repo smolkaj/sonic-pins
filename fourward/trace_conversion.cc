@@ -5,87 +5,133 @@
 #include "dvaas/packet_trace.pb.h"
 #include "simulator.pb.h"
 
-namespace fourward {
+namespace dvaas {
 namespace {
 
-// Recursively walks the TraceTree and appends DVaaS events to `trace`.
-void FlattenTraceTree(const ::fourward::sim::TraceTree& tree,
-                      dvaas::PacketTrace& trace) {
-  for (const ::fourward::sim::TraceEvent& event : tree.events()) {
-    if (event.has_table_lookup()) {
-      const ::fourward::sim::TableLookupEvent& lookup = event.table_lookup();
-      dvaas::Event& dvaas_event = *trace.add_events();
-      dvaas::TableApply& table_apply = *dvaas_event.mutable_table_apply();
+void FlattenTraceTree(const fourward::sim::TraceTree& tree,
+                      PacketTrace& trace);
+
+void AppendTraceEvent(const fourward::sim::TraceEvent& event,
+                      PacketTrace& trace) {
+  switch (event.event_case()) {
+    case fourward::sim::TraceEvent::kTableLookup: {
+      const fourward::sim::TableLookupEvent& lookup = event.table_lookup();
+      TableApply& table_apply = *trace.add_events()->mutable_table_apply();
       table_apply.set_table_name(lookup.table_name());
       if (lookup.hit()) {
         table_apply.mutable_hit();
         // TODO: Convert PI TableEntry to PDPI IrTableEntry for
-        // table_apply.hit().table_entry(). Requires PDPI on the sonic-pins
-        // side, which has it — wire up when integrating into the frontend.
+        // table_apply.hit().table_entry(). Wire up when integrating into
+        // the DVaaS frontend, which has PDPI available.
       } else {
         table_apply.mutable_miss();
       }
-    } else if (event.has_mark_to_drop()) {
-      dvaas::Event& dvaas_event = *trace.add_events();
-      dvaas::MarkToDrop& mark_to_drop = *dvaas_event.mutable_mark_to_drop();
+      break;
+    }
+    case fourward::sim::TraceEvent::kMarkToDrop: {
+      MarkToDrop& mark_to_drop =
+          *trace.add_events()->mutable_mark_to_drop();
       if (event.has_source_info()) {
         mark_to_drop.set_source_location(
             event.source_info().source_fragment());
       }
-    } else if (event.has_clone()) {
-      dvaas::Event& dvaas_event = *trace.add_events();
-      dvaas::PacketReplication& replication =
-          *dvaas_event.mutable_packet_replication();
+      break;
+    }
+    case fourward::sim::TraceEvent::kClone: {
+      PacketReplication& replication =
+          *trace.add_events()->mutable_packet_replication();
       replication.set_number_of_packets_replicated(1);
+      break;
     }
-    // Other event types (parser transitions, action executions, branch events,
-    // extern calls, etc.) have no DVaaS equivalent — they are 4ward-specific
-    // detail that DVaaS doesn't consume.
+    // These event types have no DVaaS equivalent.
+    case fourward::sim::TraceEvent::kParserTransition:
+    case fourward::sim::TraceEvent::kActionExecution:
+    case fourward::sim::TraceEvent::kBranch:
+    case fourward::sim::TraceEvent::kExternCall:
+    case fourward::sim::TraceEvent::kPacketIngress:
+    case fourward::sim::TraceEvent::kPipelineStage:
+    case fourward::sim::TraceEvent::kCloneSessionLookup:
+    case fourward::sim::TraceEvent::kLogMessage:
+    case fourward::sim::TraceEvent::kAssertion:
+    case fourward::sim::TraceEvent::kDeparserEmit:
+    case fourward::sim::TraceEvent::EVENT_NOT_SET:
+      break;
   }
+}
 
-  // Handle the outcome.
-  if (tree.has_fork_outcome()) {
-    const ::fourward::sim::Fork& fork = tree.fork_outcome();
-    if (fork.reason() == ::fourward::sim::CLONE ||
-        fork.reason() == ::fourward::sim::MULTICAST) {
-      // Parallel fork: emit a replication event and recurse into all branches.
-      if (fork.reason() == ::fourward::sim::MULTICAST) {
-        dvaas::Event& dvaas_event = *trace.add_events();
-        dvaas::PacketReplication& replication =
-            *dvaas_event.mutable_packet_replication();
-        replication.set_number_of_packets_replicated(fork.branches_size());
+void AppendOutcome(const fourward::sim::TraceTree& tree,
+                   PacketTrace& trace) {
+  switch (tree.outcome_case()) {
+    case fourward::sim::TraceTree::kForkOutcome: {
+      const fourward::sim::Fork& fork = tree.fork_outcome();
+      switch (fork.reason()) {
+        case fourward::sim::CLONE:
+        case fourward::sim::MULTICAST:
+        case fourward::sim::RESUBMIT:
+        case fourward::sim::RECIRCULATE: {
+          // Parallel fork: all branches execute.
+          if (fork.reason() == fourward::sim::MULTICAST) {
+            PacketReplication& replication =
+                *trace.add_events()->mutable_packet_replication();
+            replication.set_number_of_packets_replicated(
+                fork.branches_size());
+          }
+          for (const fourward::sim::ForkBranch& branch : fork.branches()) {
+            FlattenTraceTree(branch.subtree(), trace);
+          }
+          break;
+        }
+        case fourward::sim::ACTION_SELECTOR: {
+          // Alternative fork: follow the first branch.
+          if (!fork.branches().empty()) {
+            FlattenTraceTree(fork.branches(0).subtree(), trace);
+          }
+          break;
+        }
+        case fourward::sim::FORK_REASON_UNSPECIFIED:
+        default:
+          break;
       }
-      for (const ::fourward::sim::ForkBranch& branch : fork.branches()) {
-        FlattenTraceTree(branch.subtree(), trace);
-      }
-    } else {
-      // Alternative fork (action selector): follow the first branch.
-      if (!fork.branches().empty()) {
-        FlattenTraceTree(fork.branches(0).subtree(), trace);
-      }
+      break;
     }
-  } else if (tree.has_packet_outcome()) {
-    const ::fourward::sim::PacketOutcome& outcome = tree.packet_outcome();
-    if (outcome.has_drop()) {
-      dvaas::Event& dvaas_event = *trace.add_events();
-      dvaas_event.mutable_drop();
-    } else if (outcome.has_output()) {
-      dvaas::Event& dvaas_event = *trace.add_events();
-      dvaas::Transmit& transmit = *dvaas_event.mutable_transmit();
-      transmit.set_port(
-          std::string(outcome.output().p4rt_egress_port()));
-      transmit.set_packet_size(outcome.output().payload().size());
+    case fourward::sim::TraceTree::kPacketOutcome: {
+      const fourward::sim::PacketOutcome& outcome = tree.packet_outcome();
+      switch (outcome.outcome_case()) {
+        case fourward::sim::PacketOutcome::kDrop:
+          trace.add_events()->mutable_drop();
+          break;
+        case fourward::sim::PacketOutcome::kOutput: {
+          Transmit& transmit = *trace.add_events()->mutable_transmit();
+          transmit.set_port(
+              std::string(outcome.output().p4rt_egress_port()));
+          transmit.set_packet_size(outcome.output().payload().size());
+          break;
+        }
+        case fourward::sim::PacketOutcome::OUTCOME_NOT_SET:
+          break;
+      }
+      break;
     }
+    case fourward::sim::TraceTree::OUTCOME_NOT_SET:
+      break;
   }
+}
+
+void FlattenTraceTree(const fourward::sim::TraceTree& tree,
+                      PacketTrace& trace) {
+  for (const fourward::sim::TraceEvent& event : tree.events()) {
+    AppendTraceEvent(event, trace);
+  }
+  AppendOutcome(tree, trace);
 }
 
 }  // namespace
 
-dvaas::PacketTrace TraceTreeToPacketTrace(
-    const ::fourward::sim::TraceTree& trace_tree) {
-  dvaas::PacketTrace trace;
+PacketTrace TraceTreeToPacketTrace(
+    const fourward::sim::TraceTree& trace_tree) {
+  PacketTrace trace;
   FlattenTraceTree(trace_tree, trace);
   return trace;
 }
 
-}  // namespace fourward
+}  // namespace dvaas

@@ -21,7 +21,7 @@
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
 
-namespace fourward {
+namespace dvaas {
 namespace {
 
 // The 4ward P4RuntimeServer prints this banner when ready.
@@ -203,4 +203,4 @@ absl::StatusOr<FourwardServer> FourwardServer::Start(
   return FourwardServer(pid, *port, device_id);
 }
 
-}  // namespace fourward
+}  // namespace dvaas

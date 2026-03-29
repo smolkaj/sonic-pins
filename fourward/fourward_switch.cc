@@ -12,7 +12,7 @@
 #include "p4/v1/p4runtime.grpc.pb.h"
 #include "github.com/openconfig/gnmi/proto/gnmi/gnmi.grpc.pb.h"
 
-namespace fourward {
+namespace dvaas {
 
 FourwardSwitch::FourwardSwitch(std::string p4rt_address,
                                std::string gnmi_address, uint32_t device_id)
@@ -34,4 +34,4 @@ FourwardSwitch::CreateGnmiStub() {
   return gnmi::gNMI::NewStub(channel);
 }
 
-}  // namespace fourward
+}  // namespace dvaas

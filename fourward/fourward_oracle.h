@@ -33,7 +33,7 @@
 #include "p4/v1/p4runtime.pb.h"
 #include "p4_pdpi/ir.pb.h"
 
-namespace fourward {
+namespace dvaas {
 
 // Predicted output for a single injected packet.
 struct PacketPrediction {
@@ -90,6 +90,6 @@ class FourwardOracle {
   uint64_t device_id_;
 };
 
-}  // namespace fourward
+}  // namespace dvaas
 
 #endif  // PINS_FOURWARD_FOURWARD_ORACLE_H_

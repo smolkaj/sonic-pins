@@ -11,16 +11,16 @@
 #include "dvaas/packet_trace.pb.h"
 #include "simulator.pb.h"
 
-namespace fourward {
+namespace dvaas {
 
 // Flattens a 4ward TraceTree into a DVaaS PacketTrace.
 //
 // At non-deterministic fork points (action selectors), follows the first
 // branch. At parallel forks (clone, multicast), follows the original branch
 // and emits a PacketReplication event.
-dvaas::PacketTrace TraceTreeToPacketTrace(
-    const ::fourward::sim::TraceTree& trace_tree);
+PacketTrace TraceTreeToPacketTrace(
+    const fourward::sim::TraceTree& trace_tree);
 
-}  // namespace fourward
+}  // namespace dvaas
 
 #endif  // PINS_FOURWARD_TRACE_CONVERSION_H_

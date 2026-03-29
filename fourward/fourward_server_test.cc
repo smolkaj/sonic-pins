@@ -12,7 +12,7 @@
 #include "p4/v1/p4runtime.grpc.pb.h"
 #include "tools/cpp/runfiles/runfiles.h"
 
-namespace fourward {
+namespace dvaas {
 namespace {
 
 using ::bazel::tools::cpp::runfiles::Runfiles;
@@ -70,4 +70,4 @@ TEST(FourwardServerTest, InvalidBinaryFails) {
 }
 
 }  // namespace
-}  // namespace fourward
+}  // namespace dvaas

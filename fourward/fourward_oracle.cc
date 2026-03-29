@@ -21,15 +21,15 @@
 #include "dataplane.grpc.pb.h"
 #include "dataplane.pb.h"
 
-namespace fourward {
+namespace dvaas {
 namespace {
 
-using ::fourward::dataplane::Dataplane;
-using ::fourward::dataplane::InjectPacketRequest;
-using ::fourward::dataplane::InjectPacketsResponse;
-using ::fourward::dataplane::ProcessPacketResult;
-using ::fourward::dataplane::SubscribeResultsRequest;
-using ::fourward::dataplane::SubscribeResultsResponse;
+using fourward::dataplane::Dataplane;
+using fourward::dataplane::InjectPacketRequest;
+using fourward::dataplane::InjectPacketsResponse;
+using fourward::dataplane::ProcessPacketResult;
+using fourward::dataplane::SubscribeResultsRequest;
+using fourward::dataplane::SubscribeResultsResponse;
 
 absl::Status BecomePrimary(p4::v1::P4Runtime::StubInterface& stub,
                            uint64_t device_id) {
@@ -62,9 +62,9 @@ absl::Status BecomePrimary(p4::v1::P4Runtime::StubInterface& stub,
 
 PacketPrediction ResultToPrediction(const ProcessPacketResult& result) {
   PacketPrediction prediction;
-  for (const ::fourward::dataplane::PacketSet& outcome :
+  for (const fourward::dataplane::PacketSet& outcome :
        result.possible_outcomes()) {
-    for (const ::fourward::dataplane::OutputPacket& packet :
+    for (const fourward::dataplane::OutputPacket& packet :
          outcome.packets()) {
       prediction.output_packets.push_back({
           .port = std::string(packet.p4rt_egress_port()),
@@ -206,4 +206,4 @@ absl::StatusOr<std::vector<PacketPrediction>> FourwardOracle::PredictAll(
   return predictions;
 }
 
-}  // namespace fourward
+}  // namespace dvaas

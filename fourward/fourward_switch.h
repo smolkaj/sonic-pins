@@ -15,7 +15,7 @@
 #include "github.com/openconfig/gnmi/proto/gnmi/gnmi.grpc.pb.h"
 #include "thinkit/switch.h"
 
-namespace fourward {
+namespace dvaas {
 
 class FourwardSwitch : public thinkit::Switch {
  public:
@@ -40,6 +40,6 @@ class FourwardSwitch : public thinkit::Switch {
   uint32_t device_id_;
 };
 
-}  // namespace fourward
+}  // namespace dvaas
 
 #endif  // PINS_FOURWARD_FOURWARD_SWITCH_H_

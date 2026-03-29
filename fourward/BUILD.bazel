@@ -4,10 +4,6 @@ load("@rules_cc//cc:cc_test.bzl", "cc_test")
 
 package(default_visibility = ["//visibility:public"])
 
-# =============================================================================
-# FourwardServer — RAII subprocess manager for 4ward P4Runtime servers
-# =============================================================================
-
 cc_library(
     name = "fourward_server",
     srcs = ["fourward_server.cc"],
@@ -20,10 +16,6 @@ cc_library(
         "@abseil-cpp//absl/time",
     ],
 )
-
-# =============================================================================
-# FourwardSwitch — thinkit::Switch adapter for a 4ward server
-# =============================================================================
 
 cc_library(
     name = "fourward_switch",
@@ -38,13 +30,26 @@ cc_library(
     ],
 )
 
-# =============================================================================
-# Compiled SAI P4 middleblock for 4ward
-# =============================================================================
+cc_library(
+    name = "fourward_oracle",
+    srcs = ["fourward_oracle.cc"],
+    hdrs = ["fourward_oracle.h"],
+    deps = [
+        "@fourward//p4runtime:dataplane_cc_grpc",
+        ":fourward_server",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/strings",
+        "@fourward//p4runtime:dataplane_cc_proto",
+        "@grpc//:grpc++",
+        "@p4_infra//p4_pdpi:ir_cc_proto",
+        "@p4runtime//proto/p4/v1:p4runtime_cc_grpc",
+        "@p4runtime//proto/p4/v1:p4runtime_cc_proto",
+    ],
+)
 
 # The v1model_sai.p4 include provides typed ports with @p4runtime_translation;
-# its -I directory shadows stock v1model.p4. The other includes resolve
-# roles.h, ids.h, bitwidths.p4, and the fixed/*.p4 files.
+# its -I directory shadows stock v1model.p4.
 fourward_pipeline(
     name = "sai_middleblock_fourward",
     src = "//sai_p4/instantiations/google:middleblock.p4",
@@ -54,10 +59,6 @@ fourward_pipeline(
         "//sai_p4/instantiations/google:ids.h",
     ],
 )
-
-# =============================================================================
-# Tests
-# =============================================================================
 
 cc_test(
     name = "fourward_server_test",

@@ -69,7 +69,7 @@ git_override(
 git_override(
     module_name = "fourward",
     remote = "https://github.com/smolkaj/4ward.git",
-    commit = "6245e26e91de0e118388c7cd18fe93f3022915d3",
+    commit = "e2da84c663bcae8b4e15276cf672bbe8e5e9da4a",
 )
 
 # p4c fork that exports //p4include as a Bazel package (needed by fourward_compile).

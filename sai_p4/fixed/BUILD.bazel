@@ -13,12 +13,14 @@
 # limitations under the License.
 
 # load("@rules_cc//cc:cc_library.bzl", "cc_library")
-load("@com_google_gutil//gutil:diff_test.bzl", "cmd_diff_test")
+load("@gutil//gutil:diff_test.bzl", "cmd_diff_test")
 
 package(
     default_visibility = ["//visibility:public"],
     licenses = ["notice"],
 )
+
+exports_files(["v1model_sai.p4"])
 
 filegroup(
     name = "fixed",
@@ -70,7 +72,7 @@ cc_library(
 # our fork. Update with: bazel run //sai_p4/fixed:v1model_fork_diff_test -- --update
 genrule(
     name = "stock_v1model",
-    srcs = ["@com_github_p4lang_p4c//:p4include/v1model.p4"],
+    srcs = ["@p4c//p4include:v1model.p4"],
     outs = ["v1model.p4"],
     cmd = "cp $< $@",
 )

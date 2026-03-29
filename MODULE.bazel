@@ -72,6 +72,15 @@ git_override(
     commit = "137389b2f2f45c731d9804af9aeb43b12d3569f8",
 )
 
+# p4c fork that exports //p4include as a Bazel package (needed by fourward_compile).
+# Upstream PR: https://github.com/p4lang/p4c/pull/5533
+# TODO: Drop once merged and released to BCR.
+git_override(
+    module_name = "p4c",
+    remote = "https://github.com/smolkaj/p4c.git",
+    commit = "c7e38ae7a338973098ab73d08f631c98c470b71c",
+)
+
 # -- Non-BCR dependencies (via module extension) ------------------------------
 
 non_bcr_deps = use_extension("//:non_bcr_deps.bzl", "non_bcr_deps")

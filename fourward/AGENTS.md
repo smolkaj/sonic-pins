@@ -33,9 +33,11 @@ bazel test //fourward/...
 
 ## Code conventions
 
-1. **We strictly follow the [Google C++ Style Guide](https://google.github.io/styleguide/cppguide.html).**
+1. **We strictly follow the [Google C++ Style Guide](https://google.github.io/styleguide/cppguide.html)**
+   and the [Abseil Tips of the Week](https://abseil.io/tips/).
 
-2. **Unit tests for every `.h`/`.cc` pair.** No exceptions.
+2. **Unit tests for every `.h`/`.cc` pair.** No exceptions. A test for
+   `foo.{h,cc}` must be named `foo_<optional_middle_part>_test.cc`.
 
 3. **Use status macros** in production code:
    - `ASSIGN_OR_RETURN` instead of `if (!x.ok()) return x.status();`

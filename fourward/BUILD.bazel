@@ -49,6 +49,16 @@ cc_library(
     ],
 )
 
+cc_library(
+    name = "trace_conversion",
+    srcs = ["trace_conversion.cc"],
+    hdrs = ["trace_conversion.h"],
+    deps = [
+        "//dvaas:packet_trace_cc_proto",
+        "@fourward//simulator:simulator_cc_proto",
+    ],
+)
+
 # The v1model_sai.p4 include provides typed ports with @p4runtime_translation;
 # its -I directory shadows stock v1model.p4.
 fourward_pipeline(

@@ -67,6 +67,8 @@ cc_library(
 fourward_pipeline(
     name = "sai_middleblock_fourward",
     src = "//sai_p4/instantiations/google:middleblock.p4",
+    out = "sai_middleblock_fourward.binpb",
+    out_format = "p4runtime",
     extra_srcs = ["//sai_p4:sai_p4_srcs"],
     includes = [
         "//sai_p4/fixed:v1model_sai.p4",

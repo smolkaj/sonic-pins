@@ -40,7 +40,7 @@ std::string ServerBinaryPath() {
 // Reads a binary proto file into a ForwardingPipelineConfig.
 p4::v1::ForwardingPipelineConfig LoadPipelineConfig() {
   std::string path = RunfilePath(
-      "_main/fourward/sai_middleblock_fourward.p4rt.binpb");
+      "_main/fourward/sai_middleblock_fourward.binpb");
   std::ifstream file(path, std::ios::binary);
   EXPECT_TRUE(file.good()) << "Failed to open: " << path;
   std::ostringstream buffer;

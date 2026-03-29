@@ -8,10 +8,12 @@
 #include <cerrno>
 #include <cstdint>
 #include <cstring>
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
 
+#include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/numbers.h"
@@ -20,8 +22,20 @@
 #include "absl/strings/string_view.h"
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
+#include "tools/cpp/runfiles/runfiles.h"
 
 namespace dvaas {
+
+std::string FourwardServerBinaryPath() {
+  using ::bazel::tools::cpp::runfiles::Runfiles;
+  std::string error;
+  std::unique_ptr<Runfiles> runfiles(Runfiles::CreateForTest(&error));
+  if (runfiles == nullptr) {
+    LOG(ERROR) << "Failed to create Runfiles: " << error;
+    return "";
+  }
+  return runfiles->Rlocation("fourward/p4runtime/p4runtime_server");
+}
 namespace {
 
 // The 4ward P4RuntimeServer prints this banner when ready.
@@ -98,7 +112,7 @@ FourwardServer::FourwardServer(pid_t pid, int port, uint64_t device_id)
       device_id_(device_id),
       address_(absl::StrCat("localhost:", port)) {}
 
-FourwardServer::FourwardServer(FourwardServer&& other) noexcept
+FourwardServer::FourwardServer(FourwardServer&& other)
     : pid_(other.pid_),
       port_(other.port_),
       device_id_(other.device_id_),
@@ -106,7 +120,7 @@ FourwardServer::FourwardServer(FourwardServer&& other) noexcept
   other.pid_ = -1;
 }
 
-FourwardServer& FourwardServer::operator=(FourwardServer&& other) noexcept {
+FourwardServer& FourwardServer::operator=(FourwardServer&& other) {
   if (this != &other) {
     Kill();
     pid_ = other.pid_;

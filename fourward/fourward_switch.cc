@@ -6,6 +6,7 @@
 #include <utility>
 
 #include "absl/status/statusor.h"
+#include "fourward/fourward_server.h"
 #include "grpcpp/channel.h"
 #include "grpcpp/create_channel.h"
 #include "grpcpp/security/credentials.h"
@@ -14,23 +15,24 @@
 
 namespace dvaas {
 
-FourwardSwitch::FourwardSwitch(std::string p4rt_address,
-                               std::string gnmi_address, uint32_t device_id)
-    : p4rt_address_(std::move(p4rt_address)),
+FourwardSwitch::FourwardSwitch(FourwardServer server,
+                               std::string gnmi_address)
+    : server_(std::move(server)),
+      p4rt_address_(server_.Address()),
       gnmi_address_(std::move(gnmi_address)),
-      device_id_(device_id) {}
+      device_id_(server_.DeviceId()) {}
 
 absl::StatusOr<std::unique_ptr<p4::v1::P4Runtime::StubInterface>>
 FourwardSwitch::CreateP4RuntimeStub() {
-  auto channel = grpc::CreateChannel(p4rt_address_,
-                                     grpc::InsecureChannelCredentials());
+  std::shared_ptr<grpc::Channel> channel = grpc::CreateChannel(
+      p4rt_address_, grpc::InsecureChannelCredentials());
   return p4::v1::P4Runtime::NewStub(channel);
 }
 
 absl::StatusOr<std::unique_ptr<gnmi::gNMI::StubInterface>>
 FourwardSwitch::CreateGnmiStub() {
-  auto channel = grpc::CreateChannel(gnmi_address_,
-                                     grpc::InsecureChannelCredentials());
+  std::shared_ptr<grpc::Channel> channel = grpc::CreateChannel(
+      gnmi_address_, grpc::InsecureChannelCredentials());
   return gnmi::gNMI::NewStub(channel);
 }
 

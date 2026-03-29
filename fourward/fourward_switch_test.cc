@@ -2,45 +2,49 @@
 
 #include "fourward/fourward_switch.h"
 
-#include <cstdint>
 #include <string>
 
+#include "fourward/fourward_server.h"
 #include "gtest/gtest.h"
 
 namespace dvaas {
 namespace {
 
-TEST(FourwardSwitchTest, ChassisNameIsP4rtAddress) {
-  FourwardSwitch fourward_switch("localhost:9559", "localhost:9339",
-                                 /*device_id=*/1);
-  EXPECT_EQ(fourward_switch.ChassisName(), "localhost:9559");
-}
+TEST(FourwardSwitchTest, ChassisNameIsServerAddress) {
+  std::string binary = FourwardServerBinaryPath();
+  ASSERT_FALSE(binary.empty());
 
-TEST(FourwardSwitchTest, DeviceIdIsStored) {
-  FourwardSwitch fourward_switch("localhost:9559", "localhost:9339",
-                                 /*device_id=*/42);
-  EXPECT_EQ(fourward_switch.DeviceId(), 42);
+  absl::StatusOr<FourwardServer> server = FourwardServer::Start(binary);
+  ASSERT_TRUE(server.ok()) << server.status();
+
+  std::string expected_address = server->Address();
+  uint64_t expected_device_id = server->DeviceId();
+
+  FourwardSwitch fourward_switch(std::move(*server), "localhost:9339");
+  EXPECT_EQ(fourward_switch.ChassisName(), expected_address);
+  EXPECT_EQ(fourward_switch.DeviceId(), expected_device_id);
 }
 
 TEST(FourwardSwitchTest, CreateP4RuntimeStubSucceeds) {
-  FourwardSwitch fourward_switch("localhost:9559", "localhost:9339",
-                                 /*device_id=*/1);
-  // Stub creation should succeed even without a running server — the
-  // channel is lazy.
+  std::string binary = FourwardServerBinaryPath();
+  ASSERT_FALSE(binary.empty());
+
+  absl::StatusOr<FourwardServer> server = FourwardServer::Start(binary);
+  ASSERT_TRUE(server.ok()) << server.status();
+
+  FourwardSwitch fourward_switch(std::move(*server), "localhost:9339");
   EXPECT_TRUE(fourward_switch.CreateP4RuntimeStub().ok());
 }
 
 TEST(FourwardSwitchTest, CreateGnmiStubSucceeds) {
-  FourwardSwitch fourward_switch("localhost:9559", "localhost:9339",
-                                 /*device_id=*/1);
-  EXPECT_TRUE(fourward_switch.CreateGnmiStub().ok());
-}
+  std::string binary = FourwardServerBinaryPath();
+  ASSERT_FALSE(binary.empty());
 
-TEST(FourwardSwitchTest, P4rtAndGnmiCanUseDifferentAddresses) {
-  FourwardSwitch fourward_switch("localhost:1111", "localhost:2222",
-                                 /*device_id=*/1);
-  // ChassisName is the P4RT address, not the gNMI address.
-  EXPECT_EQ(fourward_switch.ChassisName(), "localhost:1111");
+  absl::StatusOr<FourwardServer> server = FourwardServer::Start(binary);
+  ASSERT_TRUE(server.ok()) << server.status();
+
+  FourwardSwitch fourward_switch(std::move(*server), "localhost:9339");
+  EXPECT_TRUE(fourward_switch.CreateGnmiStub().ok());
 }
 
 }  // namespace

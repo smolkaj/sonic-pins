@@ -10,11 +10,13 @@ cc_library(
     srcs = ["fourward_server.cc"],
     hdrs = ["fourward_server.h"],
     deps = [
+        "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:str_format",
         "@abseil-cpp//absl/time",
+        "@bazel_tools//tools/cpp/runfiles",
     ],
 )
 
@@ -23,6 +25,7 @@ cc_library(
     srcs = ["fourward_switch.cc"],
     hdrs = ["fourward_switch.h"],
     deps = [
+        ":fourward_server",
         "@abseil-cpp//absl/status:statusor",
         "@grpc//:grpc++",
         "@openconfig_gnmi//proto/gnmi:gnmi_cc_grpc_proto",
@@ -79,7 +82,11 @@ fourward_pipeline(
 cc_test(
     name = "fourward_switch_test",
     srcs = ["fourward_switch_test.cc"],
+    data = [
+        "@fourward//p4runtime:p4runtime_server",
+    ],
     deps = [
+        ":fourward_server",
         ":fourward_switch",
         "@googletest//:gtest_main",
     ],

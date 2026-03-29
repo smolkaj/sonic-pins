@@ -264,7 +264,7 @@ int main() {
 
     std::cout << std::string(72, '-') << std::endl;
 
-    dvaas::PacketTrace result = dvaas::TraceTreeToPacketTrace(trace_tree);
+    dvaas::PacketTrace result = dvaas::FourwardTraceTreeToDvaasPacketTrace(trace_tree);
 
     std::string output_text;
     google::protobuf::TextFormat::PrintToString(result, &output_text);

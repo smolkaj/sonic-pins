@@ -25,7 +25,7 @@ fourward::sim::TraceTree ParseTraceTree(const std::string& textproto) {
 // -- Basic event mapping tests ------------------------------------------------
 
 TEST(TraceConversionTest, EmptyTraceTreeProducesEmptyPacketTrace) {
-  PacketTrace trace = TraceTreeToPacketTrace(fourward::sim::TraceTree());
+  PacketTrace trace = FourwardTraceTreeToDvaasPacketTrace(fourward::sim::TraceTree());
   EXPECT_EQ(trace.events_size(), 0);
 }
 
@@ -40,7 +40,7 @@ TEST(TraceConversionTest, TableMiss) {
     }
   )pb");
 
-  PacketTrace trace = TraceTreeToPacketTrace(tree);
+  PacketTrace trace = FourwardTraceTreeToDvaasPacketTrace(tree);
 
   ASSERT_EQ(trace.events_size(), 1);
   EXPECT_TRUE(trace.events(0).has_table_apply());
@@ -60,7 +60,7 @@ TEST(TraceConversionTest, TableHit) {
     }
   )pb");
 
-  PacketTrace trace = TraceTreeToPacketTrace(tree);
+  PacketTrace trace = FourwardTraceTreeToDvaasPacketTrace(tree);
 
   ASSERT_EQ(trace.events_size(), 1);
   EXPECT_TRUE(trace.events(0).table_apply().has_hit());
@@ -73,7 +73,7 @@ TEST(TraceConversionTest, MarkToDrop) {
     events { mark_to_drop {} }
   )pb");
 
-  PacketTrace trace = TraceTreeToPacketTrace(tree);
+  PacketTrace trace = FourwardTraceTreeToDvaasPacketTrace(tree);
 
   ASSERT_EQ(trace.events_size(), 1);
   EXPECT_TRUE(trace.events(0).has_mark_to_drop());
@@ -87,7 +87,7 @@ TEST(TraceConversionTest, MarkToDropWithSourceInfo) {
     }
   )pb");
 
-  PacketTrace trace = TraceTreeToPacketTrace(tree);
+  PacketTrace trace = FourwardTraceTreeToDvaasPacketTrace(tree);
 
   ASSERT_EQ(trace.events_size(), 1);
   EXPECT_EQ(trace.events(0).mark_to_drop().source_location(),
@@ -99,7 +99,7 @@ TEST(TraceConversionTest, CloneEvent) {
     events { clone { session_id: 42 } }
   )pb");
 
-  PacketTrace trace = TraceTreeToPacketTrace(tree);
+  PacketTrace trace = FourwardTraceTreeToDvaasPacketTrace(tree);
 
   ASSERT_EQ(trace.events_size(), 1);
   EXPECT_TRUE(trace.events(0).has_packet_replication());
@@ -114,7 +114,7 @@ TEST(TraceConversionTest, DropOutcome) {
     packet_outcome { drop {} }
   )pb");
 
-  PacketTrace trace = TraceTreeToPacketTrace(tree);
+  PacketTrace trace = FourwardTraceTreeToDvaasPacketTrace(tree);
 
   ASSERT_EQ(trace.events_size(), 1);
   EXPECT_TRUE(trace.events(0).has_drop());
@@ -127,7 +127,7 @@ TEST(TraceConversionTest, OutputOutcome) {
     }
   )pb");
 
-  PacketTrace trace = TraceTreeToPacketTrace(tree);
+  PacketTrace trace = FourwardTraceTreeToDvaasPacketTrace(tree);
 
   ASSERT_EQ(trace.events_size(), 1);
   EXPECT_TRUE(trace.events(0).has_transmit());
@@ -155,7 +155,7 @@ TEST(TraceConversionTest, ParserTransitionsAreIgnored) {
     }
   )pb");
 
-  PacketTrace trace = TraceTreeToPacketTrace(tree);
+  PacketTrace trace = FourwardTraceTreeToDvaasPacketTrace(tree);
   EXPECT_EQ(trace.events_size(), 0);
 }
 
@@ -164,7 +164,7 @@ TEST(TraceConversionTest, ActionExecutionsAreIgnored) {
     events { action_execution { action_name: "set_dst_mac" } }
   )pb");
 
-  PacketTrace trace = TraceTreeToPacketTrace(tree);
+  PacketTrace trace = FourwardTraceTreeToDvaasPacketTrace(tree);
   EXPECT_EQ(trace.events_size(), 0);
 }
 
@@ -173,7 +173,7 @@ TEST(TraceConversionTest, BranchEventsAreIgnored) {
     events { branch { control_name: "ingress.acl" taken: true } }
   )pb");
 
-  PacketTrace trace = TraceTreeToPacketTrace(tree);
+  PacketTrace trace = FourwardTraceTreeToDvaasPacketTrace(tree);
   EXPECT_EQ(trace.events_size(), 0);
 }
 
@@ -184,7 +184,7 @@ TEST(TraceConversionTest, ExternCallsAreIgnored) {
     }
   )pb");
 
-  PacketTrace trace = TraceTreeToPacketTrace(tree);
+  PacketTrace trace = FourwardTraceTreeToDvaasPacketTrace(tree);
   EXPECT_EQ(trace.events_size(), 0);
 }
 
@@ -205,7 +205,7 @@ TEST(TraceConversionTest, CloneForkFollowsAllBranches) {
     }
   )pb");
 
-  PacketTrace trace = TraceTreeToPacketTrace(tree);
+  PacketTrace trace = FourwardTraceTreeToDvaasPacketTrace(tree);
 
   // Both branches should be present (parallel fork).
   ASSERT_EQ(trace.events_size(), 2);
@@ -232,7 +232,7 @@ TEST(TraceConversionTest, MulticastForkEmitsReplicationAndAllBranches) {
     }
   )pb");
 
-  PacketTrace trace = TraceTreeToPacketTrace(tree);
+  PacketTrace trace = FourwardTraceTreeToDvaasPacketTrace(tree);
 
   // Replication event + 3 transmit events.
   ASSERT_EQ(trace.events_size(), 4);
@@ -259,7 +259,7 @@ TEST(TraceConversionTest, ActionSelectorForkFollowsFirstBranchOnly) {
     }
   )pb");
 
-  PacketTrace trace = TraceTreeToPacketTrace(tree);
+  PacketTrace trace = FourwardTraceTreeToDvaasPacketTrace(tree);
 
   // Only the first branch (alternative fork).
   ASSERT_EQ(trace.events_size(), 1);
@@ -271,7 +271,7 @@ TEST(TraceConversionTest, ActionSelectorForkWithNoBranchesProducesNothing) {
     fork_outcome { reason: ACTION_SELECTOR }
   )pb");
 
-  PacketTrace trace = TraceTreeToPacketTrace(tree);
+  PacketTrace trace = FourwardTraceTreeToDvaasPacketTrace(tree);
   EXPECT_EQ(trace.events_size(), 0);
 }
 
@@ -290,7 +290,7 @@ TEST(TraceConversionTest, FullDropTrace) {
     packet_outcome { drop {} }
   )pb");
 
-  PacketTrace trace = TraceTreeToPacketTrace(tree);
+  PacketTrace trace = FourwardTraceTreeToDvaasPacketTrace(tree);
 
   ASSERT_EQ(trace.events_size(), 3);
   EXPECT_TRUE(trace.events(0).has_table_apply());
@@ -313,7 +313,7 @@ TEST(TraceConversionTest, FullForwardTrace) {
     }
   )pb");
 
-  PacketTrace trace = TraceTreeToPacketTrace(tree);
+  PacketTrace trace = FourwardTraceTreeToDvaasPacketTrace(tree);
 
   ASSERT_EQ(trace.events_size(), 2);
   EXPECT_TRUE(trace.events(0).table_apply().has_hit());
@@ -344,7 +344,7 @@ TEST(TraceConversionTest, EventsBeforeCloneForkArePreserved) {
     }
   )pb");
 
-  PacketTrace trace = TraceTreeToPacketTrace(tree);
+  PacketTrace trace = FourwardTraceTreeToDvaasPacketTrace(tree);
 
   // Table hit + clone replication + 2 transmits.
   ASSERT_EQ(trace.events_size(), 4);
@@ -386,7 +386,7 @@ TEST(TraceConversionTest, NestedForksAreFlattened) {
     }
   )pb");
 
-  PacketTrace trace = TraceTreeToPacketTrace(tree);
+  PacketTrace trace = FourwardTraceTreeToDvaasPacketTrace(tree);
 
   // original output + multicast replication + 2 multicast outputs.
   ASSERT_EQ(trace.events_size(), 4);
@@ -405,7 +405,7 @@ TEST(TraceConversionTest, Bmv2TextualLogIsEmpty) {
     packet_outcome { drop {} }
   )pb");
 
-  PacketTrace trace = TraceTreeToPacketTrace(tree);
+  PacketTrace trace = FourwardTraceTreeToDvaasPacketTrace(tree);
   EXPECT_TRUE(trace.bmv2_textual_log().empty());
 }
 

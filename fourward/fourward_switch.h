@@ -11,6 +11,7 @@
 #include <string>
 
 #include "absl/status/statusor.h"
+#include "fourward/fourward_server.h"
 #include "p4/v1/p4runtime.grpc.pb.h"
 #include "github.com/openconfig/gnmi/proto/gnmi/gnmi.grpc.pb.h"
 #include "thinkit/switch.h"
@@ -19,11 +20,10 @@ namespace dvaas {
 
 class FourwardSwitch : public thinkit::Switch {
  public:
-  // `p4rt_address`: "host:port" of the 4ward P4Runtime server.
+  // `server`: a running FourwardServer (taken by move). The P4Runtime address
+  //   is derived from `server.Address()`.
   // `gnmi_address`: "host:port" of a gNMI service (e.g. FakeGnmiService).
-  // `device_id`: P4Runtime device ID.
-  FourwardSwitch(std::string p4rt_address, std::string gnmi_address,
-                 uint32_t device_id);
+  FourwardSwitch(FourwardServer server, std::string gnmi_address);
 
   const std::string& ChassisName() override { return p4rt_address_; }
   uint32_t DeviceId() override { return device_id_; }
@@ -35,6 +35,7 @@ class FourwardSwitch : public thinkit::Switch {
   CreateGnmiStub() override;
 
  private:
+  FourwardServer server_;
   std::string p4rt_address_;
   std::string gnmi_address_;
   uint32_t device_id_;

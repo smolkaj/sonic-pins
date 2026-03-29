@@ -18,7 +18,7 @@ namespace dvaas {
 // At non-deterministic fork points (action selectors), follows the first
 // branch. At parallel forks (clone, multicast), follows the original branch
 // and emits a PacketReplication event.
-PacketTrace TraceTreeToPacketTrace(
+PacketTrace FourwardTraceTreeToDvaasPacketTrace(
     const fourward::sim::TraceTree& trace_tree);
 
 }  // namespace dvaas

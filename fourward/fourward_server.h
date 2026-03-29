@@ -22,6 +22,13 @@
 
 namespace dvaas {
 
+// Returns the runfiles path to the 4ward P4Runtime server binary.
+// Resolves `@fourward//p4runtime:p4runtime_server` via Bazel runfiles.
+// The caller's cc_test/cc_binary must list
+// `@fourward//p4runtime:p4runtime_server` in `data` and depend on
+// `@bazel_tools//tools/cpp/runfiles`.
+std::string FourwardServerBinaryPath();
+
 class FourwardServer {
  public:
   // Starts a 4ward P4RuntimeServer subprocess. `binary_path` is the path to
@@ -33,11 +40,11 @@ class FourwardServer {
   // `startup_timeout` controls how long to wait for the ready banner.
   static absl::StatusOr<FourwardServer> Start(
       const std::string& binary_path, uint64_t device_id = 1,
-      absl::Duration startup_timeout = absl::Seconds(60));
+      absl::Duration startup_timeout = absl::Seconds(15));
 
   // Movable but not copyable.
-  FourwardServer(FourwardServer&& other) noexcept;
-  FourwardServer& operator=(FourwardServer&& other) noexcept;
+  FourwardServer(FourwardServer&& other);
+  FourwardServer& operator=(FourwardServer&& other);
   FourwardServer(const FourwardServer&) = delete;
   FourwardServer& operator=(const FourwardServer&) = delete;
 

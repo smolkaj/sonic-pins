@@ -127,7 +127,7 @@ void FlattenTraceTree(const fourward::sim::TraceTree& tree,
 
 }  // namespace
 
-PacketTrace TraceTreeToPacketTrace(
+PacketTrace FourwardTraceTreeToDvaasPacketTrace(
     const fourward::sim::TraceTree& trace_tree) {
   PacketTrace trace;
   FlattenTraceTree(trace_tree, trace);

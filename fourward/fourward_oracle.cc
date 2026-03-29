@@ -48,7 +48,7 @@ PacketPrediction ResultToPrediction(const ProcessPacketResult& result) {
     break;
   }
   if (result.has_trace()) {
-    prediction.trace_tree_textproto = result.trace().DebugString();
+    prediction.trace = result.trace();
   }
   return prediction;
 }
@@ -63,31 +63,28 @@ FourwardOracle::FourwardOracle(
       session_(std::move(session)) {}
 
 absl::StatusOr<std::unique_ptr<FourwardOracle>> FourwardOracle::Create(
-    const std::string& server_binary_path,
     const p4::v1::ForwardingPipelineConfig& pipeline_config,
     uint32_t device_id) {
-  absl::StatusOr<FourwardServer> server =
-      FourwardServer::Start(server_binary_path, device_id);
-  if (!server.ok()) return server.status();
+  ASSIGN_OR_RETURN(FourwardServer server, FourwardServer::Start(device_id));
 
   std::shared_ptr<grpc::Channel> channel = grpc::CreateChannel(
-      server->Address(), grpc::InsecureChannelCredentials());
+      server.Address(), grpc::InsecureChannelCredentials());
   std::unique_ptr<p4::v1::P4Runtime::StubInterface> stub =
       p4::v1::P4Runtime::NewStub(channel);
 
   // Create P4Runtime session (handles arbitration).
-  absl::StatusOr<std::unique_ptr<p4_runtime::P4RuntimeSession>> session =
-      p4_runtime::P4RuntimeSession::Create(std::move(stub), device_id);
-  if (!session.ok()) return session.status();
+  ASSIGN_OR_RETURN(std::unique_ptr<p4_runtime::P4RuntimeSession> session,
+                   p4_runtime::P4RuntimeSession::Create(
+                       std::move(stub), device_id));
 
   // Load the pipeline.
   RETURN_IF_ERROR(p4_runtime::SetMetadataAndSetForwardingPipelineConfig(
-      session->get(),
+      session.get(),
       p4::v1::SetForwardingPipelineConfigRequest::RECONCILE_AND_COMMIT,
       pipeline_config));
 
   return std::unique_ptr<FourwardOracle>(new FourwardOracle(
-      std::move(*server), std::move(channel), std::move(*session)));
+      std::move(server), std::move(channel), std::move(session)));
 }
 
 absl::Status FourwardOracle::InstallIrEntities(
@@ -96,17 +93,13 @@ absl::Status FourwardOracle::InstallIrEntities(
 }
 
 absl::StatusOr<PacketPrediction> FourwardOracle::Predict(
-    absl::string_view ingress_port, absl::string_view packet_bytes) {
-  std::vector<PacketInput> inputs = {{
-      .ingress_port = std::string(ingress_port),
-      .payload = std::string(packet_bytes),
-  }};
-  absl::StatusOr<std::vector<PacketPrediction>> results = PredictAll(inputs);
-  if (!results.ok()) return results.status();
-  if (results->empty()) {
+    const PacketInput& packet) {
+  ASSIGN_OR_RETURN(std::vector<PacketPrediction> results,
+                   PredictAll({packet}));
+  if (results.empty()) {
     return absl::InternalError("PredictAll returned no results");
   }
-  return std::move((*results)[0]);
+  return std::move(results[0]);
 }
 
 absl::StatusOr<std::vector<PacketPrediction>> FourwardOracle::PredictAll(

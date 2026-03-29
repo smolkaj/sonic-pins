@@ -27,6 +27,7 @@
 #include "p4/v1/p4runtime.pb.h"
 #include "p4_infra/p4_runtime/p4_runtime_session.h"
 #include "p4_pdpi/ir.pb.h"
+#include "simulator.pb.h"
 
 namespace dvaas {
 
@@ -38,10 +39,8 @@ struct PacketPrediction {
   };
   std::vector<OutputPacket> output_packets;
 
-  // Structured trace of packet processing (4ward TraceTree in text proto).
-  // Passed as a string to avoid pulling 4ward's simulator.proto into the
-  // DVaaS frontend. Conversion to DVaaS PacketTrace happens separately.
-  std::string trace_tree_textproto;
+  // Structured trace of packet processing.
+  fourward::sim::TraceTree trace;
 };
 
 // A packet to predict, with its ingress port (P4RT encoding).
@@ -55,7 +54,6 @@ class FourwardOracle {
  public:
   // Starts a 4ward server subprocess and loads the given pipeline config.
   static absl::StatusOr<std::unique_ptr<FourwardOracle>> Create(
-      const std::string& server_binary_path,
       const p4::v1::ForwardingPipelineConfig& pipeline_config,
       uint32_t device_id = 1);
 
@@ -64,8 +62,7 @@ class FourwardOracle {
   absl::Status InstallIrEntities(const pdpi::IrEntities& ir_entities);
 
   // Predicts the output of a single packet.
-  absl::StatusOr<PacketPrediction> Predict(absl::string_view ingress_port,
-                                           absl::string_view packet_bytes);
+  absl::StatusOr<PacketPrediction> Predict(const PacketInput& packet);
 
   // Predicts outputs for a batch of packets using the streaming InjectPackets
   // + SubscribeResults RPCs. Results are returned in input order.

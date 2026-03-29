@@ -13,7 +13,6 @@
 #include <utility>
 #include <vector>
 
-#include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/numbers.h"
@@ -22,21 +21,22 @@
 #include "absl/strings/string_view.h"
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
+#include "gutil/status.h"
 #include "tools/cpp/runfiles/runfiles.h"
 
 namespace dvaas {
+namespace {
 
-std::string FourwardServerBinaryPath() {
+absl::StatusOr<std::string> ResolveFourwardServerBinary() {
   using ::bazel::tools::cpp::runfiles::Runfiles;
   std::string error;
-  std::unique_ptr<Runfiles> runfiles(Runfiles::CreateForTest(&error));
+  std::unique_ptr<Runfiles> runfiles(Runfiles::Create("", &error));
   if (runfiles == nullptr) {
-    LOG(ERROR) << "Failed to create Runfiles: " << error;
-    return "";
+    return absl::InternalError(
+        absl::StrCat("Failed to create Runfiles: ", error));
   }
   return runfiles->Rlocation("fourward/p4runtime/p4runtime_server");
 }
-namespace {
 
 // The 4ward P4RuntimeServer prints this banner when ready.
 constexpr absl::string_view kReadyBanner = "listening on port ";
@@ -107,27 +107,27 @@ void ClearBazelEnvironment() {
 }  // namespace
 
 FourwardServer::FourwardServer(pid_t pid, int port, uint64_t device_id)
-    : pid_(pid),
+    : process_id_(pid),
       port_(port),
       device_id_(device_id),
       address_(absl::StrCat("localhost:", port)) {}
 
 FourwardServer::FourwardServer(FourwardServer&& other)
-    : pid_(other.pid_),
+    : process_id_(other.process_id_),
       port_(other.port_),
       device_id_(other.device_id_),
       address_(std::move(other.address_)) {
-  other.pid_ = -1;
+  other.process_id_ = -1;
 }
 
 FourwardServer& FourwardServer::operator=(FourwardServer&& other) {
   if (this != &other) {
     Kill();
-    pid_ = other.pid_;
+    process_id_ = other.process_id_;
     port_ = other.port_;
     device_id_ = other.device_id_;
     address_ = std::move(other.address_);
-    other.pid_ = -1;
+    other.process_id_ = -1;
   }
   return *this;
 }
@@ -135,32 +135,33 @@ FourwardServer& FourwardServer::operator=(FourwardServer&& other) {
 FourwardServer::~FourwardServer() { Kill(); }
 
 void FourwardServer::Kill() {
-  if (pid_ <= 0) return;
+  if (process_id_ <= 0) return;
 
   // Try graceful shutdown first.
-  kill(pid_, SIGTERM);
+  kill(process_id_, SIGTERM);
 
   // Wait up to 5 seconds for the process to exit.
   absl::Time deadline = absl::Now() + absl::Seconds(5);
   while (absl::Now() < deadline) {
     int status;
-    pid_t result = waitpid(pid_, &status, WNOHANG);
-    if (result == pid_) {
-      pid_ = -1;
+    pid_t result = waitpid(process_id_, &status, WNOHANG);
+    if (result == process_id_) {
+      process_id_ = -1;
       return;
     }
     absl::SleepFor(absl::Milliseconds(100));
   }
 
   // Force kill if still running.
-  kill(pid_, SIGKILL);
-  waitpid(pid_, nullptr, 0);
-  pid_ = -1;
+  kill(process_id_, SIGKILL);
+  waitpid(process_id_, nullptr, 0);
+  process_id_ = -1;
 }
 
 absl::StatusOr<FourwardServer> FourwardServer::Start(
-    const std::string& binary_path, uint64_t device_id,
-    absl::Duration startup_timeout) {
+    uint64_t device_id, absl::Duration startup_timeout) {
+  ASSIGN_OR_RETURN(std::string binary_path, ResolveFourwardServerBinary());
+
   // Create a pipe for the child's stdout.
   int stdout_pipe[2];
   if (pipe(stdout_pipe) != 0) {

@@ -5,11 +5,13 @@
 // OS-assigned port; the actual port is parsed from the server's startup banner.
 //
 // Usage:
-//   ASSERT_OK_AND_ASSIGN(FourwardServer server,
-//                         FourwardServer::Start(binary_path));
+//   ASSERT_OK_AND_ASSIGN(FourwardServer server, FourwardServer::Start());
 //   // server.Address() == "localhost:<port>"
 //   // ... use gRPC to talk to the server ...
 //   // Server is killed when `server` goes out of scope.
+//
+// The cc_library/cc_test that uses this class must list
+// `@fourward//p4runtime:p4runtime_server` in its `data` attribute.
 
 #ifndef PINS_FOURWARD_FOURWARD_SERVER_H_
 #define PINS_FOURWARD_FOURWARD_SERVER_H_
@@ -22,24 +24,15 @@
 
 namespace dvaas {
 
-// Returns the runfiles path to the 4ward P4Runtime server binary.
-// Resolves `@fourward//p4runtime:p4runtime_server` via Bazel runfiles.
-// The caller's cc_test/cc_binary must list
-// `@fourward//p4runtime:p4runtime_server` in `data` and depend on
-// `@bazel_tools//tools/cpp/runfiles`.
-std::string FourwardServerBinaryPath();
-
 class FourwardServer {
  public:
-  // Starts a 4ward P4RuntimeServer subprocess. `binary_path` is the path to
-  // the server binary (a kt_jvm_binary or java_binary runfile). The server
-  // is started with `--port=0` to bind to an ephemeral port; the actual port
-  // is detected from the server's startup banner on stdout.
+  // Starts a 4ward P4RuntimeServer subprocess. The server binary is resolved
+  // from Bazel runfiles (`@fourward//p4runtime:p4runtime_server`).
   //
   // `device_id` is passed to the server via `--device-id`.
   // `startup_timeout` controls how long to wait for the ready banner.
   static absl::StatusOr<FourwardServer> Start(
-      const std::string& binary_path, uint64_t device_id = 1,
+      uint64_t device_id = 1,
       absl::Duration startup_timeout = absl::Seconds(15));
 
   // Movable but not copyable.
@@ -64,7 +57,8 @@ class FourwardServer {
   FourwardServer(pid_t pid, int port, uint64_t device_id);
   void Kill();
 
-  pid_t pid_ = -1;
+  // PID of the child process, or -1 if no process is running.
+  pid_t process_id_ = -1;
   int port_ = 0;
   uint64_t device_id_ = 0;
   std::string address_;

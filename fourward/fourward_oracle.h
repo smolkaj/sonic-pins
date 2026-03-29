@@ -5,16 +5,10 @@
 // block for 4ward integration in the DVaaS frontend.
 //
 // Usage:
-//   ASSERT_OK_AND_ASSIGN(auto oracle,
+//   ASSERT_OK_AND_ASSIGN(std::unique_ptr<FourwardOracle> oracle,
 //       FourwardOracle::Create(binary_path, fourward_config));
-//   ASSERT_OK(oracle->InstallEntities(ir_entities, ir_p4info));
-//
-//   // Single packet:
-//   ASSERT_OK_AND_ASSIGN(auto prediction,
-//       oracle->Predict(ingress_port, packet_bytes));
-//
-//   // Batch (streaming — much faster for many packets):
-//   ASSERT_OK_AND_ASSIGN(auto predictions,
+//   ASSERT_OK(oracle->InstallIrEntities(ir_entities));
+//   ASSERT_OK_AND_ASSIGN(std::vector<PacketPrediction> predictions,
 //       oracle->PredictAll(packets));
 
 #ifndef PINS_FOURWARD_FOURWARD_ORACLE_H_
@@ -29,8 +23,9 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "fourward/fourward_server.h"
-#include "p4/v1/p4runtime.grpc.pb.h"
+#include "grpcpp/channel.h"
 #include "p4/v1/p4runtime.pb.h"
+#include "p4_infra/p4_runtime/p4_runtime_session.h"
 #include "p4_pdpi/ir.pb.h"
 
 namespace dvaas {
@@ -62,14 +57,13 @@ class FourwardOracle {
   static absl::StatusOr<std::unique_ptr<FourwardOracle>> Create(
       const std::string& server_binary_path,
       const p4::v1::ForwardingPipelineConfig& pipeline_config,
-      uint64_t device_id = 1);
+      uint32_t device_id = 1);
 
-  // Installs table entries on the 4ward server. Can be called multiple times.
-  absl::Status InstallEntities(const pdpi::IrEntities& ir_entities,
-                               const pdpi::IrP4Info& ir_p4info);
+  // Installs IR entities on the 4ward server. Reads P4Info from the server
+  // for IR-to-PI translation.
+  absl::Status InstallIrEntities(const pdpi::IrEntities& ir_entities);
 
-  // Predicts the output of a single packet. Convenience wrapper around
-  // PredictAll for one-off use.
+  // Predicts the output of a single packet.
   absl::StatusOr<PacketPrediction> Predict(absl::string_view ingress_port,
                                            absl::string_view packet_bytes);
 
@@ -80,14 +74,17 @@ class FourwardOracle {
 
   const std::string& ServerAddress() const { return server_.Address(); }
 
+  // Exposes the P4Runtime session for direct use (e.g. by DVaaS).
+  p4_runtime::P4RuntimeSession& Session() { return *session_; }
+
  private:
   FourwardOracle(FourwardServer server,
                  std::shared_ptr<grpc::Channel> channel,
-                 uint64_t device_id);
+                 std::unique_ptr<p4_runtime::P4RuntimeSession> session);
 
   FourwardServer server_;
   std::shared_ptr<grpc::Channel> channel_;
-  uint64_t device_id_;
+  std::unique_ptr<p4_runtime::P4RuntimeSession> session_;
 };
 
 }  // namespace dvaas

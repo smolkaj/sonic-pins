@@ -35,11 +35,13 @@ cc_library(
     srcs = ["fourward_oracle.cc"],
     hdrs = ["fourward_oracle.h"],
     deps = [
-        "@fourward//p4runtime:dataplane_cc_grpc",
         ":fourward_server",
+        "//p4_infra/p4_runtime:p4_runtime_session",
+        "//p4_infra/p4_runtime:p4_runtime_session_extras",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
+        "@fourward//p4runtime:dataplane_cc_grpc",
         "@fourward//p4runtime:dataplane_cc_proto",
         "@grpc//:grpc++",
         "@gutil//gutil:status",
@@ -68,6 +70,48 @@ fourward_pipeline(
     includes = [
         "//sai_p4/fixed:v1model_sai.p4",
         "//sai_p4/instantiations/google:ids.h",
+    ],
+)
+
+cc_test(
+    name = "fourward_switch_test",
+    srcs = ["fourward_switch_test.cc"],
+    deps = [
+        ":fourward_switch",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "trace_conversion_test",
+    srcs = ["trace_conversion_test.cc"],
+    deps = [
+        ":trace_conversion",
+        "//dvaas:packet_trace_cc_proto",
+        "@fourward//simulator:simulator_cc_proto",
+        "@googletest//:gtest_main",
+        "@gutil//gutil:proto_matchers",
+    ],
+)
+
+cc_test(
+    name = "fourward_oracle_test",
+    srcs = ["fourward_oracle_test.cc"],
+    data = [
+        ":sai_middleblock_fourward",
+        "@fourward//p4runtime:p4runtime_server",
+    ],
+    deps = [
+        ":fourward_oracle",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/strings",
+        "@bazel_tools//tools/cpp/runfiles",
+        "@googletest//:gtest_main",
+        "@gutil//gutil:proto",
+        "@gutil//gutil:status_matchers",
+        "@p4_infra//p4_pdpi:ir_cc_proto",
+        "@p4runtime//proto/p4/v1:p4runtime_cc_proto",
     ],
 )
 

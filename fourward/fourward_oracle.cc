@@ -1,6 +1,5 @@
 #include "fourward/fourward_oracle.h"
 
-#include <chrono>
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -9,6 +8,7 @@
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "fourward/fourward_server.h"
 #include "grpcpp/channel.h"
@@ -18,6 +18,8 @@
 #include "gutil/status.h"
 #include "p4/v1/p4runtime.grpc.pb.h"
 #include "p4/v1/p4runtime.pb.h"
+#include "p4_infra/p4_runtime/p4_runtime_session.h"
+#include "p4_infra/p4_runtime/p4_runtime_session_extras.h"
 #include "dataplane.grpc.pb.h"
 #include "dataplane.pb.h"
 
@@ -30,35 +32,6 @@ using fourward::dataplane::InjectPacketsResponse;
 using fourward::dataplane::ProcessPacketResult;
 using fourward::dataplane::SubscribeResultsRequest;
 using fourward::dataplane::SubscribeResultsResponse;
-
-absl::Status BecomePrimary(p4::v1::P4Runtime::StubInterface& stub,
-                           uint64_t device_id) {
-  grpc::ClientContext context;
-  std::unique_ptr<grpc::ClientReaderWriterInterface<
-      p4::v1::StreamMessageRequest, p4::v1::StreamMessageResponse>>
-      stream = stub.StreamChannel(&context);
-
-  p4::v1::StreamMessageRequest request;
-  p4::v1::MasterArbitrationUpdate* arbitration =
-      request.mutable_arbitration();
-  arbitration->set_device_id(device_id);
-  arbitration->mutable_election_id()->set_low(1);
-  if (!stream->Write(request)) {
-    return absl::InternalError("Failed to send arbitration request");
-  }
-
-  p4::v1::StreamMessageResponse response;
-  if (!stream->Read(&response)) {
-    return absl::InternalError("Failed to read arbitration response");
-  }
-  if (!response.has_arbitration() ||
-      response.arbitration().status().code() != 0) {
-    return absl::InternalError("Arbitration failed");
-  }
-
-  stream->WritesDone();
-  return gutil::GrpcStatusToAbslStatus(stream->Finish());
-}
 
 PacketPrediction ResultToPrediction(const ProcessPacketResult& result) {
   PacketPrediction prediction;
@@ -82,17 +55,17 @@ PacketPrediction ResultToPrediction(const ProcessPacketResult& result) {
 
 }  // namespace
 
-FourwardOracle::FourwardOracle(FourwardServer server,
-                               std::shared_ptr<grpc::Channel> channel,
-                               uint64_t device_id)
+FourwardOracle::FourwardOracle(
+    FourwardServer server, std::shared_ptr<grpc::Channel> channel,
+    std::unique_ptr<p4_runtime::P4RuntimeSession> session)
     : server_(std::move(server)),
       channel_(std::move(channel)),
-      device_id_(device_id) {}
+      session_(std::move(session)) {}
 
 absl::StatusOr<std::unique_ptr<FourwardOracle>> FourwardOracle::Create(
     const std::string& server_binary_path,
     const p4::v1::ForwardingPipelineConfig& pipeline_config,
-    uint64_t device_id) {
+    uint32_t device_id) {
   absl::StatusOr<FourwardServer> server =
       FourwardServer::Start(server_binary_path, device_id);
   if (!server.ok()) return server.status();
@@ -102,36 +75,24 @@ absl::StatusOr<std::unique_ptr<FourwardOracle>> FourwardOracle::Create(
   std::unique_ptr<p4::v1::P4Runtime::StubInterface> stub =
       p4::v1::P4Runtime::NewStub(channel);
 
-  absl::Status status = BecomePrimary(*stub, device_id);
-  if (!status.ok()) return status;
+  // Create P4Runtime session (handles arbitration).
+  absl::StatusOr<std::unique_ptr<p4_runtime::P4RuntimeSession>> session =
+      p4_runtime::P4RuntimeSession::Create(std::move(stub), device_id);
+  if (!session.ok()) return session.status();
 
   // Load the pipeline.
-  p4::v1::SetForwardingPipelineConfigRequest request;
-  request.set_device_id(device_id);
-  request.mutable_election_id()->set_low(1);
-  request.set_action(
-      p4::v1::SetForwardingPipelineConfigRequest::RECONCILE_AND_COMMIT);
-  *request.mutable_config() = pipeline_config;
+  RETURN_IF_ERROR(p4_runtime::SetMetadataAndSetForwardingPipelineConfig(
+      session->get(),
+      p4::v1::SetForwardingPipelineConfigRequest::RECONCILE_AND_COMMIT,
+      pipeline_config));
 
-  grpc::ClientContext context;
-  context.set_deadline(std::chrono::system_clock::now() +
-                       std::chrono::seconds(60));
-  p4::v1::SetForwardingPipelineConfigResponse response;
-  grpc::Status rpc_status =
-      stub->SetForwardingPipelineConfig(&context, request, &response);
-  if (!rpc_status.ok()) {
-    return gutil::GrpcStatusToAbslStatus(rpc_status);
-  }
-
-  return std::unique_ptr<FourwardOracle>(
-      new FourwardOracle(std::move(*server), std::move(channel), device_id));
+  return std::unique_ptr<FourwardOracle>(new FourwardOracle(
+      std::move(*server), std::move(channel), std::move(*session)));
 }
 
-absl::Status FourwardOracle::InstallEntities(
-    const pdpi::IrEntities& ir_entities, const pdpi::IrP4Info& ir_p4info) {
-  // TODO: Convert IR entities to PI via PDPI and install via Write RPC.
-  return absl::UnimplementedError(
-      "InstallEntities not yet implemented — needs PDPI IR→PI conversion");
+absl::Status FourwardOracle::InstallIrEntities(
+    const pdpi::IrEntities& ir_entities) {
+  return p4_runtime::InstallIrEntities(*session_, ir_entities);
 }
 
 absl::StatusOr<PacketPrediction> FourwardOracle::Predict(

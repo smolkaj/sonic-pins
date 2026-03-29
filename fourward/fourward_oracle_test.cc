@@ -1,21 +1,20 @@
-// E2E test: start a 4ward server, load SAI P4, install entries, inject
-// packets, and verify output predictions and traces.
+// E2E test: start a 4ward server, load SAI P4, inject packets, and verify
+// output predictions.
 
 #include "fourward/fourward_oracle.h"
 
+#include <fstream>
 #include <memory>
+#include <sstream>
 #include <string>
 #include <vector>
 
-#include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "gutil/proto.h"
 #include "gutil/status_matchers.h"
 #include "p4/v1/p4runtime.pb.h"
-#include "p4_pdpi/ir.pb.h"
 #include "tools/cpp/runfiles/runfiles.h"
 
 namespace dvaas {
@@ -23,7 +22,6 @@ namespace {
 
 using ::bazel::tools::cpp::runfiles::Runfiles;
 using ::gutil::IsOk;
-using ::testing::Not;
 
 std::string RunfilePath(const std::string& path) {
   std::string error;
@@ -39,13 +37,19 @@ std::string ServerBinaryPath() {
   return RunfilePath("fourward/p4runtime/p4runtime_server");
 }
 
+// Reads a binary proto file into a ForwardingPipelineConfig.
 p4::v1::ForwardingPipelineConfig LoadPipelineConfig() {
   std::string path = RunfilePath(
-      "sonic_pins/fourward/sai_middleblock_fourward.p4rt.binpb");
+      "_main/fourward/sai_middleblock_fourward.p4rt.binpb");
+  std::ifstream file(path, std::ios::binary);
+  EXPECT_TRUE(file.good()) << "Failed to open: " << path;
+  std::ostringstream buffer;
+  buffer << file.rdbuf();
+  std::string contents = buffer.str();
+
   p4::v1::ForwardingPipelineConfig config;
-  absl::Status status =
-      gutil::ReadProtoFromFile(path, &config);
-  EXPECT_THAT(status, IsOk()) << "Failed to load pipeline: " << path;
+  EXPECT_TRUE(config.ParseFromString(contents))
+      << "Failed to parse binary proto from: " << path;
   return config;
 }
 

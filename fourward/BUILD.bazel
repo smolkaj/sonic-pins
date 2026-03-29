@@ -122,14 +122,11 @@ cc_test(
     ],
     deps = [
         ":fourward_oracle",
-        "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
         "@bazel_tools//tools/cpp/runfiles",
         "@googletest//:gtest_main",
-        "@gutil//gutil:proto",
         "@gutil//gutil:status_matchers",
-        "@p4_infra//p4_pdpi:ir_cc_proto",
         "@p4runtime//proto/p4/v1:p4runtime_cc_proto",
     ],
 )

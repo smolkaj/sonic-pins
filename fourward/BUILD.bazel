@@ -60,6 +60,26 @@ cc_library(
 )
 
 cc_library(
+    name = "test_vector_generation",
+    testonly = True,
+    srcs = ["test_vector_generation.cc"],
+    hdrs = ["test_vector_generation.h"],
+    deps = [
+        ":fourward_oracle",
+        ":trace_conversion",
+        "//dvaas:test_vector",
+        "//dvaas:test_vector_cc_proto",
+        "//lib/p4rt:p4rt_port",
+        "//p4_symbolic/packet_synthesizer:packet_synthesizer_cc_proto",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/strings",
+        "@gutil//gutil:status",
+        "@p4_infra//packetlib",
+        "@p4_infra//packetlib:packetlib_cc_proto",
+    ],
+)
+
+cc_library(
     name = "trace_conversion",
     srcs = ["trace_conversion.cc"],
     hdrs = ["trace_conversion.h"],

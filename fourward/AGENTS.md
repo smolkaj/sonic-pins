@@ -52,7 +52,11 @@ bazel test //fourward/...
 6. **Exhaustive switch on proto oneofs.** Never use if/else chains to
    dispatch on proto oneof fields.
 
-7. **Never fail silently.** Prefer compile-time failures (exhaustive switch)
+7. **Use `int` for loop variables**, per Google Style Guide. The
+   `-Wno-sign-compare` flag in `.bazelrc` suppresses warnings when comparing
+   `int` against `.size()`. Never use `unsigned` or `size_t` for loops.
+
+8. **Never fail silently.** Prefer compile-time failures (exhaustive switch)
    over runtime checks. When runtime checks are needed, return an error
    status with a descriptive message.
 

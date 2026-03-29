@@ -32,7 +32,6 @@ cc_library(
         "@abseil-cpp//absl/status:statusor",
         "@grpc//:grpc++",
         "@gutil//gutil:status",
-        "@openconfig_gnmi//proto/gnmi:gnmi_cc_grpc_proto",
         "@p4runtime//proto/p4/v1:p4runtime_cc_grpc",
         "//thinkit:switch",
     ],

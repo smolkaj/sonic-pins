@@ -74,8 +74,9 @@ class FourwardPinsSwitch : public thinkit::Switch {
   std::unique_ptr<FakeGnmiServer> gnmi_server_;
 
   // Pre-packet hook state, behind a pointer so FourwardPinsSwitch stays
-  // movable (grpc::ClientContext is not movable).
-  class HookState;
+  // movable (grpc::ClientContext is not movable). Defined in the .cc file.
+  struct HookState;
+  static void RunHookLoop(HookState& hook);
   std::unique_ptr<HookState> hook_;
 };
 

@@ -63,7 +63,7 @@ cc_test(
         "//dvaas:validation_result",
         "//dvaas:test_vector",
         "//dvaas:test_vector_cc_proto",
-        "//fourward:fourward_mirror_testbed",
+        "//fourward:fourward_pins_mirror_testbed",
         "//fourward:fourward_oracle",
         "//fourward:test_vector_generation",
         "//lib/p4rt:p4rt_port",

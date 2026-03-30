@@ -8,7 +8,7 @@
 // These tests are expected to FAIL until the pre-packet hook and
 // auxiliary entry reconciliation are implemented.
 
-#include "fourward/fourward_switch.h"
+#include "fourward/fourward_pins_switch.h"
 
 #include <memory>
 #include <string>
@@ -87,7 +87,7 @@ constexpr absl::string_view kUdpPacket = R"pb(
 // the punt silently fails. With it, the packet arrives as a PacketIn.
 TEST(FourwardPinsSwitchTest, DISABLED_AclTrapPuntsPacketWithAuxEntries) {
   p4::v1::ForwardingPipelineConfig config = LoadFourwardConfig();
-  ASSERT_OK_AND_ASSIGN(FourwardSwitch pins_switch, FourwardSwitch::Create());
+  ASSERT_OK_AND_ASSIGN(FourwardPinsSwitch pins_switch, FourwardPinsSwitch::Create());
   ASSERT_OK_AND_ASSIGN(
       std::unique_ptr<p4_runtime::P4RuntimeSession> session,
       p4_runtime::P4RuntimeSession::Create(pins_switch));
@@ -123,7 +123,7 @@ TEST(FourwardPinsSwitchTest, DISABLED_AclTrapPuntsPacketWithAuxEntries) {
 TEST(FourwardPinsSwitchTest,
      DISABLED_L3ForwardingWorksWithAuxEntries) {
   p4::v1::ForwardingPipelineConfig config = LoadFourwardConfig();
-  ASSERT_OK_AND_ASSIGN(FourwardSwitch pins_switch, FourwardSwitch::Create());
+  ASSERT_OK_AND_ASSIGN(FourwardPinsSwitch pins_switch, FourwardPinsSwitch::Create());
   ASSERT_OK_AND_ASSIGN(
       std::unique_ptr<p4_runtime::P4RuntimeSession> session,
       p4_runtime::P4RuntimeSession::Create(pins_switch));
@@ -151,7 +151,7 @@ TEST(FourwardPinsSwitchTest,
 TEST(FourwardPinsSwitchTest,
      DISABLED_AuxiliaryEntriesInvisibleToReads) {
   p4::v1::ForwardingPipelineConfig config = LoadFourwardConfig();
-  ASSERT_OK_AND_ASSIGN(FourwardSwitch pins_switch, FourwardSwitch::Create());
+  ASSERT_OK_AND_ASSIGN(FourwardPinsSwitch pins_switch, FourwardPinsSwitch::Create());
   ASSERT_OK_AND_ASSIGN(
       std::unique_ptr<p4_runtime::P4RuntimeSession> session,
       p4_runtime::P4RuntimeSession::Create(pins_switch));
@@ -201,7 +201,7 @@ TEST(FourwardPinsSwitchTest,
 TEST(FourwardPinsSwitchTest,
      DISABLED_AclTrapFailsWithoutAuxEntriesSucceedsWith) {
   p4::v1::ForwardingPipelineConfig config = LoadFourwardConfig();
-  ASSERT_OK_AND_ASSIGN(FourwardSwitch pins_switch, FourwardSwitch::Create());
+  ASSERT_OK_AND_ASSIGN(FourwardPinsSwitch pins_switch, FourwardPinsSwitch::Create());
   ASSERT_OK_AND_ASSIGN(
       std::unique_ptr<p4_runtime::P4RuntimeSession> session,
       p4_runtime::P4RuntimeSession::Create(pins_switch));

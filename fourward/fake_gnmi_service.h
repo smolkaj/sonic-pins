@@ -16,7 +16,7 @@
 // port IDs. DVaaS uses gNMI to discover switch ports and check that they are
 // up. This fake serves just enough to satisfy those queries.
 //
-// Runs as an in-process gRPC server. FourwardSwitch connects to its address.
+// Runs as an in-process gRPC server. FourwardPinsSwitch connects to its address.
 
 #ifndef PINS_FOURWARD_FAKE_GNMI_SERVICE_H_
 #define PINS_FOURWARD_FAKE_GNMI_SERVICE_H_

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "fourward/fourward_mirror_testbed.h"
+#include "fourward/fourward_pins_mirror_testbed.h"
 
 #include <memory>
 
@@ -24,25 +24,25 @@
 namespace dvaas {
 namespace {
 
-TEST(FourwardMirrorTestbedTest, CreateSucceeds) {
-  ASSERT_OK_AND_ASSIGN(std::unique_ptr<FourwardMirrorTestbed> testbed,
-                        FourwardMirrorTestbed::Create());
+TEST(FourwardPinsMirrorTestbedTest, CreateSucceeds) {
+  ASSERT_OK_AND_ASSIGN(std::unique_ptr<FourwardPinsMirrorTestbed> testbed,
+                        FourwardPinsMirrorTestbed::Create());
   EXPECT_FALSE(testbed->Sut().ChassisName().empty());
   EXPECT_FALSE(testbed->ControlSwitch().ChassisName().empty());
   EXPECT_EQ(testbed->Sut().DeviceId(), 1);
   EXPECT_EQ(testbed->ControlSwitch().DeviceId(), 2);
 }
 
-TEST(FourwardMirrorTestbedTest, P4RuntimeStubsConnect) {
-  ASSERT_OK_AND_ASSIGN(std::unique_ptr<FourwardMirrorTestbed> testbed,
-                        FourwardMirrorTestbed::Create());
+TEST(FourwardPinsMirrorTestbedTest, P4RuntimeStubsConnect) {
+  ASSERT_OK_AND_ASSIGN(std::unique_ptr<FourwardPinsMirrorTestbed> testbed,
+                        FourwardPinsMirrorTestbed::Create());
   EXPECT_OK(testbed->Sut().CreateP4RuntimeStub());
   EXPECT_OK(testbed->ControlSwitch().CreateP4RuntimeStub());
 }
 
-TEST(FourwardMirrorTestbedTest, GnmiStubsConnect) {
-  ASSERT_OK_AND_ASSIGN(std::unique_ptr<FourwardMirrorTestbed> testbed,
-                        FourwardMirrorTestbed::Create());
+TEST(FourwardPinsMirrorTestbedTest, GnmiStubsConnect) {
+  ASSERT_OK_AND_ASSIGN(std::unique_ptr<FourwardPinsMirrorTestbed> testbed,
+                        FourwardPinsMirrorTestbed::Create());
   ASSERT_OK_AND_ASSIGN(
       std::unique_ptr<gnmi::gNMI::StubInterface> sut_gnmi,
       testbed->Sut().CreateGnmiStub());
@@ -53,9 +53,9 @@ TEST(FourwardMirrorTestbedTest, GnmiStubsConnect) {
   EXPECT_NE(control_gnmi, nullptr);
 }
 
-TEST(FourwardMirrorTestbedTest, CustomDeviceIds) {
-  ASSERT_OK_AND_ASSIGN(std::unique_ptr<FourwardMirrorTestbed> testbed,
-                        FourwardMirrorTestbed::Create(
+TEST(FourwardPinsMirrorTestbedTest, CustomDeviceIds) {
+  ASSERT_OK_AND_ASSIGN(std::unique_ptr<FourwardPinsMirrorTestbed> testbed,
+                        FourwardPinsMirrorTestbed::Create(
                             /*sut_device_id=*/10, /*control_device_id=*/20));
   EXPECT_EQ(testbed->Sut().DeviceId(), 10);
   EXPECT_EQ(testbed->ControlSwitch().DeviceId(), 20);

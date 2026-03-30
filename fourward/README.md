@@ -29,10 +29,10 @@ lifecycle: resolve the binary from Bazel runfiles, fork/exec with `--port=0`,
 parse the port from the startup banner, and kill the process on destruction
 (SIGTERM → SIGKILL after 5s).
 
-### FourwardSwitch (`fourward_switch.h`)
+### FourwardPinsSwitch (`fourward_pins_switch.h`)
 
 `thinkit::Switch` backed by a `FourwardServer`. Starts its own server
-subprocess via `FourwardSwitch::Create()`.
+subprocess via `FourwardPinsSwitch::Create()`.
 
 ### FourwardOracle (`fourward_oracle.h`)
 
@@ -55,7 +55,7 @@ ports by gNMI interface name — SUT's "Ethernet0" connects to control switch's
 gNMI per packet to resolve the mapping. See
 [designs/port_identity.md](designs/port_identity.md) for the full design.
 
-### FourwardMirrorTestbed (`fourward_mirror_testbed.h`)
+### FourwardPinsMirrorTestbed (`fourward_pins_mirror_testbed.h`)
 
 `thinkit::MirrorTestbed` backed by two 4ward instances with fake gNMI and a
 packet bridge. The development vehicle — exercises all integration code without

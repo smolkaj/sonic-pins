@@ -30,7 +30,6 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/synchronization/notification.h"
-#include "dataplane.grpc.pb.h"
 #include "fourward/fourward_pins_switch.h"
 #include "grpcpp/client_context.h"
 #include "thinkit/bazel_test_environment.h"
@@ -43,8 +42,8 @@ namespace dvaas {
 // FakeGnmiService lookups for port resolution.
 class FourwardPinsMirrorTestbed : public thinkit::MirrorTestbed {
  public:
-  // Creates a testbed with two FourwardPinsSwitch instances and starts
-  // packet bridging between them.
+  // Creates a testbed with two FourwardPinsSwitch instances. Call
+  // StartBridge() after loading pipelines to enable packet forwarding.
   static absl::StatusOr<std::unique_ptr<FourwardPinsMirrorTestbed>> Create(
       uint32_t sut_device_id = 1, uint32_t control_device_id = 2);
 

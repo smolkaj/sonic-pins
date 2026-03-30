@@ -18,7 +18,7 @@ TEST(FourwardPinsSwitchTest, CreateSucceeds) {
 
 TEST(FourwardPinsSwitchTest, CreateWithCustomDeviceId) {
   ASSERT_OK_AND_ASSIGN(FourwardPinsSwitch pins_switch,
-                       FourwardPinsSwitch::Create(42));
+                       FourwardPinsSwitch::Create({.device_id = 42}));
   EXPECT_EQ(pins_switch.DeviceId(), 42);
 }
 

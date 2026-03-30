@@ -3,7 +3,7 @@
 // These tests verify the port mapping contracts from
 // designs/port_identity.md. All DISABLED until implemented.
 
-#include "fourward/fourward_switch.h"
+#include "fourward/fourward_pins_switch.h"
 
 #include <memory>
 #include <string>
@@ -28,7 +28,7 @@ namespace {
 // after mirroring SUT port config to the control switch.
 TEST(FourwardPinsSwitchPortTest,
      DISABLED_GnmiSetConverges) {
-  ASSERT_OK_AND_ASSIGN(FourwardSwitch switch_a, FourwardSwitch::Create());
+  ASSERT_OK_AND_ASSIGN(FourwardPinsSwitch switch_a, FourwardPinsSwitch::Create());
 
   // Read initial gNMI state — "Ethernet0" has P4RT ID "1".
   ASSERT_OK_AND_ASSIGN(
@@ -65,14 +65,14 @@ TEST(FourwardPinsSwitchPortTest,
 TEST(FourwardPinsSwitchPortTest,
      DISABLED_BridgeRoutesByInterfaceName) {
   // SUT: "Ethernet0" → P4RT ID "1" (dataplane port 1)
-  ASSERT_OK_AND_ASSIGN(FourwardSwitch sut,
-                        FourwardSwitch::Create(/*device_id=*/1));
+  ASSERT_OK_AND_ASSIGN(FourwardPinsSwitch sut,
+                        FourwardPinsSwitch::Create(/*device_id=*/1));
 
   // Control: "Ethernet0" → P4RT ID "5" (dataplane port 5)
   // TODO: Create with custom FakeInterface list where Ethernet0 has
   // p4rt_id = 5.
-  ASSERT_OK_AND_ASSIGN(FourwardSwitch control,
-                        FourwardSwitch::Create(/*device_id=*/2));
+  ASSERT_OK_AND_ASSIGN(FourwardPinsSwitch control,
+                        FourwardPinsSwitch::Create(/*device_id=*/2));
 
   // TODO: Start PacketBridge between them.
   // TODO: Install forwarding on SUT to output on SUT's "Ethernet0".
@@ -90,7 +90,7 @@ TEST(FourwardPinsSwitchPortTest,
 // install → send packets.
 TEST(FourwardPinsSwitchPortTest,
      DISABLED_GnmiSetThenP4RuntimeWorks) {
-  ASSERT_OK_AND_ASSIGN(FourwardSwitch pins_switch, FourwardSwitch::Create());
+  ASSERT_OK_AND_ASSIGN(FourwardPinsSwitch pins_switch, FourwardPinsSwitch::Create());
 
   // TODO: gNMI Set to change "Ethernet0" from P4RT ID "1" to "5".
   // TODO: Wait for convergence.
@@ -106,7 +106,7 @@ TEST(FourwardPinsSwitchPortTest,
 // The packet should be dropped (with a warning), not forwarded.
 TEST(FourwardPinsSwitchPortTest,
      DISABLED_UnmappedPortDropsPacket) {
-  ASSERT_OK_AND_ASSIGN(FourwardSwitch pins_switch, FourwardSwitch::Create());
+  ASSERT_OK_AND_ASSIGN(FourwardPinsSwitch pins_switch, FourwardPinsSwitch::Create());
 
   // TODO: Load pipeline, install entry that forwards to port "999"
   //   (no gNMI interface has this P4RT ID).

@@ -1,4 +1,4 @@
-#include "fourward/fourward_switch.h"
+#include "fourward/fourward_pins_switch.h"
 
 #include <cstdint>
 #include <memory>
@@ -16,27 +16,27 @@
 
 namespace dvaas {
 
-FourwardSwitch::FourwardSwitch(FourwardServer server,
-                               std::unique_ptr<FakeGnmiServer> gnmi_server)
+FourwardPinsSwitch::FourwardPinsSwitch(
+    FourwardServer server, std::unique_ptr<FakeGnmiServer> gnmi_server)
     : server_(std::move(server)), gnmi_server_(std::move(gnmi_server)) {}
 
-absl::StatusOr<FourwardSwitch> FourwardSwitch::Create(
+absl::StatusOr<FourwardPinsSwitch> FourwardPinsSwitch::Create(
     uint32_t device_id, std::vector<FakeInterface> interfaces) {
   ASSIGN_OR_RETURN(FourwardServer server, FourwardServer::Start(device_id));
   ASSIGN_OR_RETURN(std::unique_ptr<FakeGnmiServer> gnmi_server,
                    FakeGnmiServer::Create(std::move(interfaces)));
-  return FourwardSwitch(std::move(server), std::move(gnmi_server));
+  return FourwardPinsSwitch(std::move(server), std::move(gnmi_server));
 }
 
 absl::StatusOr<std::unique_ptr<p4::v1::P4Runtime::StubInterface>>
-FourwardSwitch::CreateP4RuntimeStub() {
+FourwardPinsSwitch::CreateP4RuntimeStub() {
   std::shared_ptr<grpc::Channel> channel = grpc::CreateChannel(
       server_.Address(), grpc::InsecureChannelCredentials());
   return p4::v1::P4Runtime::NewStub(channel);
 }
 
 absl::StatusOr<std::unique_ptr<gnmi::gNMI::StubInterface>>
-FourwardSwitch::CreateGnmiStub() {
+FourwardPinsSwitch::CreateGnmiStub() {
   std::shared_ptr<grpc::Channel> channel = grpc::CreateChannel(
       gnmi_server_->Address(), grpc::InsecureChannelCredentials());
   return gnmi::gNMI::NewStub(channel);

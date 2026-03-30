@@ -13,7 +13,7 @@
 // limitations under the License.
 
 // Tests for the portable PINS backend: unit tests for each method and an
-// integration test exercising the backend against a FourwardMirrorTestbed.
+// integration test exercising the backend against a FourwardPinsMirrorTestbed.
 
 #include "dvaas/portable_pins_backend/portable_pins_backend.h"
 
@@ -32,7 +32,7 @@
 #include "dvaas/test_vector.h"
 #include "dvaas/test_vector.pb.h"
 #include "dvaas/validation_result.h"
-#include "fourward/fourward_mirror_testbed.h"
+#include "fourward/fourward_pins_mirror_testbed.h"
 #include "fourward/fourward_oracle.h"
 #include "fourward/test_vector_generation.h"
 #include "gtest/gtest.h"
@@ -191,15 +191,15 @@ TEST(PortablePinsBackendTest,
   EXPECT_EQ(vector.acceptable_outputs(0).packets(0).port(), "1");
 }
 
-// E2E integration: verifies the backend drives a FourwardMirrorTestbed
+// E2E integration: verifies the backend drives a FourwardPinsMirrorTestbed
 // end-to-end — pipeline loading, entity installation, punt entry generation,
 // and test vector generation with correct predictions.
 TEST(PortablePinsBackendTest, BackendWorksEndToEndWithFourwardTestbed) {
   p4::v1::ForwardingPipelineConfig fourward_config = LoadFourwardConfig();
 
   // -- Testbed ---------------------------------------------------------------
-  ASSERT_OK_AND_ASSIGN(std::unique_ptr<FourwardMirrorTestbed> testbed,
-                       FourwardMirrorTestbed::Create());
+  ASSERT_OK_AND_ASSIGN(std::unique_ptr<FourwardPinsMirrorTestbed> testbed,
+                       FourwardPinsMirrorTestbed::Create());
 
   // Open a P4RT session on the SUT and load the pipeline.
   ASSERT_OK_AND_ASSIGN(
@@ -238,15 +238,15 @@ TEST(PortablePinsBackendTest, BackendWorksEndToEndWithFourwardTestbed) {
 }
 
 // The north star test: run the full DVaaS ValidateDataplane flow using
-// a FourwardMirrorTestbed, the portable PINS backend, and user-provided
+// a FourwardPinsMirrorTestbed, the portable PINS backend, and user-provided
 // test vectors.
 TEST(PortablePinsBackendTest,
      ValidateDataplaneWithUserProvidedTestVectors) {
   p4::v1::ForwardingPipelineConfig fourward_config = LoadFourwardConfig();
 
   // Create testbed and backend.
-  ASSERT_OK_AND_ASSIGN(std::unique_ptr<FourwardMirrorTestbed> testbed,
-                       FourwardMirrorTestbed::Create());
+  ASSERT_OK_AND_ASSIGN(std::unique_ptr<FourwardPinsMirrorTestbed> testbed,
+                       FourwardPinsMirrorTestbed::Create());
   std::unique_ptr<DataplaneValidationBackend> backend =
       CreatePortablePinsBackend(fourward_config);
   DataplaneValidator validator(std::move(backend));
@@ -362,8 +362,8 @@ TEST(PortablePinsBackendTest,
      DISABLED_ValidateDataplaneWithSynthesizedTestVectors) {
   p4::v1::ForwardingPipelineConfig fourward_config = LoadFourwardConfig();
 
-  ASSERT_OK_AND_ASSIGN(std::unique_ptr<FourwardMirrorTestbed> testbed,
-                       FourwardMirrorTestbed::Create());
+  ASSERT_OK_AND_ASSIGN(std::unique_ptr<FourwardPinsMirrorTestbed> testbed,
+                       FourwardPinsMirrorTestbed::Create());
   std::unique_ptr<DataplaneValidationBackend> backend =
       CreatePortablePinsBackend(fourward_config);
   DataplaneValidator validator(std::move(backend));

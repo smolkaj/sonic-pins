@@ -3,8 +3,8 @@
 // Starts a 4ward P4Runtime server subprocess and an in-process fake gNMI
 // server, exposing both through the thinkit::Switch API.
 
-#ifndef PINS_FOURWARD_FOURWARD_SWITCH_H_
-#define PINS_FOURWARD_FOURWARD_SWITCH_H_
+#ifndef PINS_FOURWARD_FOURWARD_PINS_SWITCH_H_
+#define PINS_FOURWARD_FOURWARD_PINS_SWITCH_H_
 
 #include <cstdint>
 #include <memory>
@@ -20,11 +20,11 @@
 
 namespace dvaas {
 
-class FourwardSwitch : public thinkit::Switch {
+class FourwardPinsSwitch : public thinkit::Switch {
  public:
-  // Creates a FourwardSwitch by starting a 4ward server subprocess and a fake
-  // gNMI server with the given interfaces.
-  static absl::StatusOr<FourwardSwitch> Create(
+  // Creates a FourwardPinsSwitch by starting a 4ward server subprocess and a
+  // fake gNMI server with the given interfaces.
+  static absl::StatusOr<FourwardPinsSwitch> Create(
       uint32_t device_id = 1,
       std::vector<FakeInterface> interfaces =
           FakeGnmiService::DefaultInterfaces());
@@ -39,12 +39,12 @@ class FourwardSwitch : public thinkit::Switch {
   CreateGnmiStub() override;
 
  private:
-  FourwardSwitch(FourwardServer server,
-                 std::unique_ptr<FakeGnmiServer> gnmi_server);
+  FourwardPinsSwitch(FourwardServer server,
+                     std::unique_ptr<FakeGnmiServer> gnmi_server);
   FourwardServer server_;
   std::unique_ptr<FakeGnmiServer> gnmi_server_;
 };
 
 }  // namespace dvaas
 
-#endif  // PINS_FOURWARD_FOURWARD_SWITCH_H_
+#endif  // PINS_FOURWARD_FOURWARD_PINS_SWITCH_H_

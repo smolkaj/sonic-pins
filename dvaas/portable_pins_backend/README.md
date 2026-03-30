@@ -54,7 +54,7 @@ This backend provides a fully portable implementation:
           └─ sai::CreateV1ModelAuxiliaryEntities (shared, see below)
 ```
 
-## Auxiliary entries and the FourwardMirrorTestbed
+## Auxiliary entries and the FourwardPinsMirrorTestbed
 
 SAI P4 has tables that model gNMI configuration knobs affecting forwarding:
 VLAN membership, port admin state, loopback mode, etc. On a real switch,
@@ -77,7 +77,7 @@ This function is shared by two consumers:
    DVaaS during validation to augment the SUT's entities with auxiliary
    entries for the reference simulator.
 
-2. **`FourwardMirrorTestbed`** (`fourward/fourward_mirror_testbed.h`) —
+2. **`FourwardPinsMirrorTestbed`** (`fourward/fourward_pins_mirror_testbed.h`) —
    calls it during `Create()` to install auxiliary entries on both 4ward
    servers transparently. DVaaS doesn't know it's running on simulated
    switches — it just sees a `thinkit::MirrorTestbed`. The testbed's
@@ -85,7 +85,7 @@ This function is shared by two consumers:
    `CreateV1ModelAuxiliaryEntities` reads from.
 
 ```
-  FourwardMirrorTestbed::Create()
+  FourwardPinsMirrorTestbed::Create()
       │
       ├─ Start 2 FourwardServers
       ├─ Start 2 FakeGnmiServers
@@ -120,7 +120,7 @@ ASSIGN_OR_RETURN(ValidationResult result,
 ## Known limitations
 
 - **Auxiliary entries are computed once.** Both the backend and
-  `FourwardMirrorTestbed` currently compute auxiliary entries at
+  `FourwardPinsMirrorTestbed` currently compute auxiliary entries at
   creation/validation time. If entities are installed or gNMI config changes
   later (e.g. during failure post-processing or multi-round validation), the
   auxiliary entries may become stale. A reactive approach — updating auxiliary

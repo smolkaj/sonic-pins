@@ -19,14 +19,8 @@ name what you're trading away, and name why.
 ## Repository map
 
 ```
-fourward/fourward_server.{h,cc}       RAII subprocess manager for 4ward servers.
-fourward/fourward_switch.{h,cc}       thinkit::Switch backed by a FourwardServer.
-fourward/fourward_oracle.{h,cc}       Output + trace prediction via InjectPackets RPC.
-fourward/fake_gnmi_service.h          In-process fake gNMI for port discovery.
-fourward/packet_bridge.{h,cc}         Emulates back-to-back links between two instances.
-fourward/fourward_mirror_testbed.h    thinkit::MirrorTestbed (two 4ward + gNMI + bridge).
-fourward/trace_conversion.{h,cc}      TraceTree → PacketTrace conversion.
-fourward/BUILD.bazel                  All build targets.
+dvaas/portable_pins_backend/          Open-source DVaaS backend for PINS/SAI P4 switches.
+fourward/                             4ward integration (subprocess, oracle, testbed, bridge).
 fourward/README.md                    Architecture overview and component docs.
 ```
 

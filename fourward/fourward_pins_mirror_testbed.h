@@ -12,32 +12,32 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// thinkit::MirrorTestbed backed by two FourwardSwitch instances (each owning a
-// 4ward P4Runtime server and a fake gNMI server) and a PacketBridge connecting
-// them.
+// thinkit::MirrorTestbed backed by two FourwardPinsSwitch instances (each
+// owning a 4ward P4Runtime server and a fake gNMI server) and a PacketBridge
+// connecting them.
 
-#ifndef PINS_FOURWARD_FOURWARD_MIRROR_TESTBED_H_
-#define PINS_FOURWARD_FOURWARD_MIRROR_TESTBED_H_
+#ifndef PINS_FOURWARD_FOURWARD_PINS_MIRROR_TESTBED_H_
+#define PINS_FOURWARD_FOURWARD_PINS_MIRROR_TESTBED_H_
 
 #include <cstdint>
 #include <memory>
 #include <utility>
 
 #include "absl/status/statusor.h"
-#include "fourward/fourward_switch.h"
+#include "fourward/fourward_pins_switch.h"
 #include "fourward/packet_bridge.h"
 #include "thinkit/bazel_test_environment.h"
 #include "thinkit/mirror_testbed.h"
 
 namespace dvaas {
 
-// A thinkit::MirrorTestbed with two FourwardSwitch instances and a
+// A thinkit::MirrorTestbed with two FourwardPinsSwitch instances and a
 // PacketBridge connecting them.
-class FourwardMirrorTestbed : public thinkit::MirrorTestbed {
+class FourwardPinsMirrorTestbed : public thinkit::MirrorTestbed {
  public:
-  // Creates a testbed with two FourwardSwitch instances (each including a fake
-  // gNMI server) and a PacketBridge between them.
-  static absl::StatusOr<std::unique_ptr<FourwardMirrorTestbed>> Create(
+  // Creates a testbed with two FourwardPinsSwitch instances (each including a
+  // fake gNMI server) and a PacketBridge between them.
+  static absl::StatusOr<std::unique_ptr<FourwardPinsMirrorTestbed>> Create(
       uint32_t sut_device_id = 1, uint32_t control_device_id = 2);
 
   thinkit::Switch& Sut() override { return sut_; }
@@ -47,19 +47,19 @@ class FourwardMirrorTestbed : public thinkit::MirrorTestbed {
   PacketBridge& Bridge() { return *bridge_; }
 
  private:
-  FourwardMirrorTestbed(FourwardSwitch sut, FourwardSwitch control,
-                        std::unique_ptr<PacketBridge> bridge)
+  FourwardPinsMirrorTestbed(FourwardPinsSwitch sut, FourwardPinsSwitch control,
+                            std::unique_ptr<PacketBridge> bridge)
       : sut_(std::move(sut)),
         control_(std::move(control)),
         bridge_(std::move(bridge)),
         env_(/*mask_known_failures=*/false) {}
 
-  FourwardSwitch sut_;
-  FourwardSwitch control_;
+  FourwardPinsSwitch sut_;
+  FourwardPinsSwitch control_;
   std::unique_ptr<PacketBridge> bridge_;
   thinkit::BazelTestEnvironment env_;
 };
 
 }  // namespace dvaas
 
-#endif  // PINS_FOURWARD_FOURWARD_MIRROR_TESTBED_H_
+#endif  // PINS_FOURWARD_FOURWARD_PINS_MIRROR_TESTBED_H_

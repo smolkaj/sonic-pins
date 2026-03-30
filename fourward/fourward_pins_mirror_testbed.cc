@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "fourward/fourward_mirror_testbed.h"
+#include "fourward/fourward_pins_mirror_testbed.h"
 
 #include <cstdint>
 #include <memory>
@@ -20,20 +20,20 @@
 #include <utility>
 
 #include "absl/status/statusor.h"
-#include "fourward/fourward_switch.h"
+#include "fourward/fourward_pins_switch.h"
 #include "fourward/packet_bridge.h"
 #include "github.com/openconfig/gnmi/proto/gnmi/gnmi.grpc.pb.h"
 #include "gutil/status.h"
 
 namespace dvaas {
 
-absl::StatusOr<std::unique_ptr<FourwardMirrorTestbed>>
-FourwardMirrorTestbed::Create(uint32_t sut_device_id,
-                              uint32_t control_device_id) {
-  ASSIGN_OR_RETURN(FourwardSwitch sut_switch,
-                   FourwardSwitch::Create(sut_device_id));
-  ASSIGN_OR_RETURN(FourwardSwitch control_switch,
-                   FourwardSwitch::Create(control_device_id));
+absl::StatusOr<std::unique_ptr<FourwardPinsMirrorTestbed>>
+FourwardPinsMirrorTestbed::Create(uint32_t sut_device_id,
+                                  uint32_t control_device_id) {
+  ASSIGN_OR_RETURN(FourwardPinsSwitch sut_switch,
+                   FourwardPinsSwitch::Create(sut_device_id));
+  ASSIGN_OR_RETURN(FourwardPinsSwitch control_switch,
+                   FourwardPinsSwitch::Create(control_device_id));
 
   std::string sut_address = sut_switch.ChassisName();
   std::string control_address = control_switch.ChassisName();
@@ -48,8 +48,10 @@ FourwardMirrorTestbed::Create(uint32_t sut_device_id,
           std::move(control_gnmi_stub)));
 
   // Can't use make_unique due to private constructor.
-  return std::unique_ptr<FourwardMirrorTestbed>(new FourwardMirrorTestbed(
-      std::move(sut_switch), std::move(control_switch), std::move(bridge)));
+  return std::unique_ptr<FourwardPinsMirrorTestbed>(
+      new FourwardPinsMirrorTestbed(std::move(sut_switch),
+                                    std::move(control_switch),
+                                    std::move(bridge)));
 }
 
 }  // namespace dvaas

@@ -178,7 +178,7 @@ config, and the control plane glue that bridges them. Tests using a
 ## Implementation plan
 
 1. **Rename** `FourwardSwitch` → `FourwardPinsSwitch`,
-   `FourwardMirrorTestbed` → `FourwardPinsMirrorTestbed`.
+   `FourwardMirrorTestbed` → `FourwardPinsMirrorTestbed`. (Done.)
 2. **Add `pins_auxiliary` role** to SAI P4 for auxiliary tables.
 3. **4ward:** add pre-packet hook RPC to Dataplane service, add gNMI lock
    to FakeGnmiService.

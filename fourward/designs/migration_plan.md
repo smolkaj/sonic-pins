@@ -291,7 +291,7 @@ straightforward copy of already-reviewed, already-tested code:
 
 6. **Complete these items before starting google3 work:**
    - Oracle reuse in the `DataplaneValidator`
-   - `FourwardMirrorTestbed` with auxiliary entries (transparent to DVaaS)
+   - `FourwardPinsMirrorTestbed` with auxiliary entries (transparent to DVaaS)
    - Full `ValidateDataplane` E2E test
    - p4-symbolic integration for packet synthesis
    - Side-by-side BMv2 vs 4ward comparison infrastructure

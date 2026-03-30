@@ -24,9 +24,9 @@ cc_library(
 )
 
 cc_library(
-    name = "fourward_switch",
-    srcs = ["fourward_switch.cc"],
-    hdrs = ["fourward_switch.h"],
+    name = "fourward_pins_switch",
+    srcs = ["fourward_pins_switch.cc"],
+    hdrs = ["fourward_pins_switch.h"],
     deps = [
         ":fake_gnmi_service",
         ":fourward_server",
@@ -127,10 +127,10 @@ fourward_pipeline(
 )
 
 cc_test(
-    name = "fourward_switch_test",
-    srcs = ["fourward_switch_test.cc"],
+    name = "fourward_pins_switch_basic_test",
+    srcs = ["fourward_pins_switch_basic_test.cc"],
     deps = [
-        ":fourward_switch",
+        ":fourward_pins_switch",
         "@googletest//:gtest_main",
         "@gutil//gutil:status_matchers",
         "@openconfig_gnmi//proto/gnmi:gnmi_cc_grpc_proto",
@@ -203,6 +203,7 @@ cc_library(
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:str_format",
+        "@abseil-cpp//absl/synchronization",
         "@grpc//:grpc++",
         "@openconfig_gnmi//proto/gnmi:gnmi_cc_grpc_proto",
     ],
@@ -260,12 +261,12 @@ cc_test(
 )
 
 cc_library(
-    name = "fourward_mirror_testbed",
+    name = "fourward_pins_mirror_testbed",
     testonly = True,
-    srcs = ["fourward_mirror_testbed.cc"],
-    hdrs = ["fourward_mirror_testbed.h"],
+    srcs = ["fourward_pins_mirror_testbed.cc"],
+    hdrs = ["fourward_pins_mirror_testbed.h"],
     deps = [
-        ":fourward_switch",
+        ":fourward_pins_switch",
         ":packet_bridge",
         "@abseil-cpp//absl/status:statusor",
         "@grpc//:grpc++",
@@ -277,10 +278,10 @@ cc_library(
 )
 
 cc_test(
-    name = "fourward_mirror_testbed_test",
-    srcs = ["fourward_mirror_testbed_test.cc"],
+    name = "fourward_pins_mirror_testbed_test",
+    srcs = ["fourward_pins_mirror_testbed_test.cc"],
     deps = [
-        ":fourward_mirror_testbed",
+        ":fourward_pins_mirror_testbed",
         "@googletest//:gtest_main",
         "@gutil//gutil:status_matchers",
         "@openconfig_gnmi//proto/gnmi:gnmi_cc_grpc_proto",

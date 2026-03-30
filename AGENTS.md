@@ -79,7 +79,23 @@ Unit tests live alongside the source: `foo_test.cc` next to `foo.{h,cc}`.
    over runtime checks. When runtime checks are needed, return an error
    status with a descriptive message.
 
-9. **Prefer golden tests for proto-to-proto or text-output functions.** Golden
+9. **Test helper functions over test fixtures**
+   ([TOTW #122](https://abseil.io/tips/122)). Extract repeated test setup
+   into free helper functions that return `absl::StatusOr`, not into
+   class-based fixtures. Callers use `ASSERT_OK_AND_ASSIGN`.
+
+10. **Never use `_or` suffix for `StatusOr` variables**
+    ([TOTW #181](https://abseil.io/tips/181)). Use `ASSIGN_OR_RETURN` or
+    `ASSERT_OK_AND_ASSIGN` to unwrap directly.
+
+11. **Tests: clarity over DRY.** Unit tests should read top-to-bottom
+    without jumping to helpers or base classes. Some duplication between
+    tests is expected and preferable to indirection that obscures what the
+    test actually does. Extract a helper only when the repeated code is
+    setup/teardown that distracts from the test's intent — never to satisfy
+    DRY at the cost of readability.
+
+12. **Prefer golden tests for proto-to-proto or text-output functions.** Golden
    tests are less brittle than substring assertions — when output format
    changes, you just `--update` the golden file instead of fixing N assertions.
    Use `cmd_diff_test` from `@gutil//gutil:diff_test.bzl` with a runner binary

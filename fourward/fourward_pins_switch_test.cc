@@ -1,12 +1,9 @@
 // TDD: FourwardPinsSwitch behaves like a real PINS switch.
 //
-// Auxiliary entries (PRE clone sessions, VLAN membership, etc.) are
+// Auxiliary entries (PRE clone sessions, ingress_clone_table entries) are
 // installed transparently and invisible to the user. These tests verify
 // the contract by checking that behavior changes with auxiliary entries
 // and that they don't appear in P4Runtime reads.
-//
-// These tests are expected to FAIL until the pre-packet hook and
-// auxiliary entry reconciliation are implemented.
 
 #include "fourward/fourward_pins_switch.h"
 
@@ -78,40 +75,64 @@ constexpr absl::string_view kUdpPacket = R"pb(
   headers { udp_header { source_port: "0x0000" destination_port: "0x0000" } }
 )pb";
 
+// Loads pipeline and installs ACL trap entries on the given switch. Returns
+// the P4Runtime session (which must outlive the switch for StreamChannel).
+absl::StatusOr<std::unique_ptr<p4_runtime::P4RuntimeSession>>
+SetUpSwitchWithAclTrap(FourwardPinsSwitch& pins_switch) {
+  p4::v1::ForwardingPipelineConfig config = LoadFourwardConfig();
+  ASSIGN_OR_RETURN(std::unique_ptr<p4_runtime::P4RuntimeSession> session,
+                   p4_runtime::P4RuntimeSession::Create(pins_switch));
+  RETURN_IF_ERROR(p4_runtime::SetMetadataAndSetForwardingPipelineConfig(
+      session.get(),
+      p4::v1::SetForwardingPipelineConfigRequest::RECONCILE_AND_COMMIT,
+      config));
+  RETURN_IF_ERROR(sai::EntryBuilder()
+                      .AddEntryPuntingAllPackets(sai::PuntAction::kTrap)
+                      .InstallDedupedEntities(*session));
+  return session;
+}
+
+// Injects a packet via the 4ward Dataplane service, which triggers the
+// pre-packet hook (installing auxiliary entries) before processing.
+fourward::dataplane::InjectPacketResponse InjectPacket(
+    FourwardPinsSwitch& pins_switch, int ingress_port,
+    const std::string& payload) {
+  auto stub = pins_switch.CreateDataplaneStub();
+  grpc::ClientContext context;
+  fourward::dataplane::InjectPacketRequest request;
+  request.set_dataplane_ingress_port(ingress_port);
+  request.set_payload(payload);
+  fourward::dataplane::InjectPacketResponse response;
+  grpc::Status status = stub->InjectPacket(&context, request, &response);
+  EXPECT_TRUE(status.ok()) << "InjectPacket failed: " << status.error_message();
+  return response;
+}
+
+int OutputPacketCount(
+    const fourward::dataplane::InjectPacketResponse& response) {
+  if (response.possible_outcomes_size() == 0) return 0;
+  return response.possible_outcomes(0).packets_size();
+}
+
 // ---------------------------------------------------------------------------
 // Litmus test 1: ACL trap requires PRE auxiliary entry
 // ---------------------------------------------------------------------------
 
 // An ACL trap entry punts matching packets to the CPU via the Packet
-// Replication Engine. Without the PRE clone session (an auxiliary entry),
-// the punt silently fails. With it, the packet arrives as a PacketIn.
-TEST(FourwardPinsSwitchTest, DISABLED_AclTrapPuntsPacketWithAuxEntries) {
-  p4::v1::ForwardingPipelineConfig config = LoadFourwardConfig();
-  ASSERT_OK_AND_ASSIGN(FourwardPinsSwitch pins_switch, FourwardPinsSwitch::Create());
-  ASSERT_OK_AND_ASSIGN(
-      std::unique_ptr<p4_runtime::P4RuntimeSession> session,
-      p4_runtime::P4RuntimeSession::Create(pins_switch));
-  ASSERT_OK(p4_runtime::SetMetadataAndSetForwardingPipelineConfig(
-      session.get(),
-      p4::v1::SetForwardingPipelineConfigRequest::RECONCILE_AND_COMMIT,
-      config));
+// Replication Engine. Without the PRE clone session and ingress_clone_table
+// entry (auxiliary entries), the punt silently fails.
+TEST(FourwardPinsSwitchTest, AclTrapPuntsPacketWithAuxEntries) {
+  ASSERT_OK_AND_ASSIGN(FourwardPinsSwitch pins_switch,
+                       FourwardPinsSwitch::Create());
+  ASSERT_OK_AND_ASSIGN(auto session, SetUpSwitchWithAclTrap(pins_switch));
 
-  // Install only an ACL trap entry — no manual PRE or auxiliary entries.
-  ASSERT_OK(sai::EntryBuilder()
-                .AddEntryPuntingAllPackets(sai::PuntAction::kTrap)
-                .InstallDedupedEntities(*session));
+  std::string payload = SerializeTestPacket(kUdpPacket);
+  auto response =
+      InjectPacket(pins_switch, /*ingress_port=*/0, payload);
 
-  // Send a packet via the switch's dataplane.
-  // TODO: Use switch's Dataplane service once exposed.
-
-  // Verify: packet should arrive as PacketIn (punt succeeded).
-  // Without auxiliary entries, this would fail (no PRE clone session).
-  p4::v1::StreamMessageResponse response;
-  ASSERT_TRUE(session->StreamChannelRead(response, absl::Seconds(5)))
-      << "Expected PacketIn from ACL trap, but no response received. "
+  EXPECT_GT(OutputPacketCount(response), 0)
+      << "Expected cloned packet from ACL trap, but got none. "
          "The PRE clone session (auxiliary entry) is likely missing.";
-  EXPECT_TRUE(response.has_packet())
-      << "Expected PacketIn, got: " << response.DebugString();
 }
 
 // ---------------------------------------------------------------------------
@@ -120,26 +141,28 @@ TEST(FourwardPinsSwitchTest, DISABLED_AclTrapPuntsPacketWithAuxEntries) {
 
 // L3 forwarding requires VLAN check disable entries. Without them,
 // packets are dropped before reaching the routing tables.
-TEST(FourwardPinsSwitchTest,
-     DISABLED_L3ForwardingWorksWithAuxEntries) {
-  p4::v1::ForwardingPipelineConfig config = LoadFourwardConfig();
-  ASSERT_OK_AND_ASSIGN(FourwardPinsSwitch pins_switch, FourwardPinsSwitch::Create());
+TEST(FourwardPinsSwitchTest, DISABLED_L3ForwardingWorksWithAuxEntries) {
+  ASSERT_OK_AND_ASSIGN(FourwardPinsSwitch pins_switch,
+                       FourwardPinsSwitch::Create());
   ASSERT_OK_AND_ASSIGN(
       std::unique_ptr<p4_runtime::P4RuntimeSession> session,
       p4_runtime::P4RuntimeSession::Create(pins_switch));
+  p4::v1::ForwardingPipelineConfig config = LoadFourwardConfig();
   ASSERT_OK(p4_runtime::SetMetadataAndSetForwardingPipelineConfig(
       session.get(),
       p4::v1::SetForwardingPipelineConfigRequest::RECONCILE_AND_COMMIT,
       config));
-
-  // Install ONLY forwarding entries — no VLAN disable entries.
   ASSERT_OK(sai::EntryBuilder()
                 .AddEntriesForwardingIpPacketsToGivenPort("1")
                 .InstallDedupedEntities(*session));
 
-  // Send a packet via the switch's dataplane.
-  // TODO: Use switch's Dataplane service once exposed.
-  // Verify: packet should be forwarded to port 1, not dropped by VLAN.
+  std::string payload = SerializeTestPacket(kUdpPacket);
+  auto response =
+      InjectPacket(pins_switch, /*ingress_port=*/0, payload);
+
+  EXPECT_GT(OutputPacketCount(response), 0)
+      << "Packet was dropped — VLAN disable auxiliary entries are likely "
+         "missing.";
 }
 
 // ---------------------------------------------------------------------------
@@ -148,25 +171,14 @@ TEST(FourwardPinsSwitchTest,
 
 // A wildcard read by a sdn_controller session should NOT return
 // auxiliary entries installed by the pins_auxiliary role.
-TEST(FourwardPinsSwitchTest,
-     DISABLED_AuxiliaryEntriesInvisibleToReads) {
-  p4::v1::ForwardingPipelineConfig config = LoadFourwardConfig();
-  ASSERT_OK_AND_ASSIGN(FourwardPinsSwitch pins_switch, FourwardPinsSwitch::Create());
-  ASSERT_OK_AND_ASSIGN(
-      std::unique_ptr<p4_runtime::P4RuntimeSession> session,
-      p4_runtime::P4RuntimeSession::Create(pins_switch));
-  ASSERT_OK(p4_runtime::SetMetadataAndSetForwardingPipelineConfig(
-      session.get(),
-      p4::v1::SetForwardingPipelineConfigRequest::RECONCILE_AND_COMMIT,
-      config));
+TEST(FourwardPinsSwitchTest, DISABLED_AuxiliaryEntriesInvisibleToReads) {
+  ASSERT_OK_AND_ASSIGN(FourwardPinsSwitch pins_switch,
+                       FourwardPinsSwitch::Create());
+  ASSERT_OK_AND_ASSIGN(auto session, SetUpSwitchWithAclTrap(pins_switch));
 
-  // Install one user entry.
-  ASSERT_OK(sai::EntryBuilder()
-                .AddEntryPuntingAllPackets(sai::PuntAction::kTrap)
-                .InstallDedupedEntities(*session));
-
-  // Trigger auxiliary entry reconciliation (via a packet or explicit call).
-  // TODO: Send a packet to trigger the pre-packet hook.
+  // Trigger auxiliary entry reconciliation by injecting a packet.
+  std::string payload = SerializeTestPacket(kUdpPacket);
+  InjectPacket(pins_switch, /*ingress_port=*/0, payload);
 
   // Read all entries as sdn_controller.
   p4::v1::ReadRequest read_request;
@@ -176,16 +188,7 @@ TEST(FourwardPinsSwitchTest,
                        session->Read(read_request));
 
   // Verify: only the user-installed ACL entry should be visible.
-  // Auxiliary entries (PRE clone session, VLAN entries, etc.) should NOT
-  // appear in the read response.
-  for (const p4::v1::Entity& entity : read_response.entities()) {
-    if (entity.has_table_entry()) {
-      // None of the returned entries should be auxiliary entries.
-      // TODO: Check against known auxiliary table IDs.
-    }
-  }
-
-  // At minimum, the user's ACL entry should be present.
+  // TODO: Check against known auxiliary table IDs.
   EXPECT_GT(read_response.entities_size(), 0)
       << "Expected at least the user-installed ACL entry";
 }
@@ -194,41 +197,35 @@ TEST(FourwardPinsSwitchTest,
 // Litmus test 4: With vs without — prove auxiliary entries are the cause
 // ---------------------------------------------------------------------------
 
-// Same switch, same ACL trap entry, same packet. First inject WITHOUT
-// auxiliary entries (hook disabled or not yet triggered) and verify the
-// punt fails. Then inject WITH auxiliary entries and verify it succeeds.
-// This proves causality — the auxiliary entries are what makes it work.
-TEST(FourwardPinsSwitchTest,
-     DISABLED_AclTrapFailsWithoutAuxEntriesSucceedsWith) {
-  p4::v1::ForwardingPipelineConfig config = LoadFourwardConfig();
-  ASSERT_OK_AND_ASSIGN(FourwardPinsSwitch pins_switch, FourwardPinsSwitch::Create());
-  ASSERT_OK_AND_ASSIGN(
-      std::unique_ptr<p4_runtime::P4RuntimeSession> session,
-      p4_runtime::P4RuntimeSession::Create(pins_switch));
-  ASSERT_OK(p4_runtime::SetMetadataAndSetForwardingPipelineConfig(
-      session.get(),
-      p4::v1::SetForwardingPipelineConfigRequest::RECONCILE_AND_COMMIT,
-      config));
+// Two switches, same pipeline, same ACL trap entry, same packet. One has
+// auxiliary entries enabled, the other doesn't. Only the one with auxiliary
+// entries produces a cloned output — proving the auxiliary entries are the
+// cause.
+TEST(FourwardPinsSwitchTest, AclTrapFailsWithoutAuxEntriesSucceedsWith) {
+  std::string payload = SerializeTestPacket(kUdpPacket);
 
-  // Install only an ACL trap entry.
-  ASSERT_OK(sai::EntryBuilder()
-                .AddEntryPuntingAllPackets(sai::PuntAction::kTrap)
-                .InstallDedupedEntities(*session));
+  // WITHOUT auxiliary entries: clone silently fails.
+  {
+    ASSERT_OK_AND_ASSIGN(
+        FourwardPinsSwitch pins_switch,
+        FourwardPinsSwitch::Create({.enable_auxiliary_entries = false}));
+    ASSERT_OK_AND_ASSIGN(auto session, SetUpSwitchWithAclTrap(pins_switch));
+    auto response =
+        InjectPacket(pins_switch, /*ingress_port=*/0, payload);
+    EXPECT_EQ(OutputPacketCount(response), 0)
+        << "Expected NO output without auxiliary entries, but got output.";
+  }
 
-  // Phase 1: WITHOUT auxiliary entries.
-  // TODO: Inject packet via Dataplane service with hook disabled.
-  // Verify: no PacketIn (punt fails silently — no PRE clone session).
-  p4::v1::StreamMessageResponse response;
-  EXPECT_FALSE(session->StreamChannelRead(response, absl::Seconds(2)))
-      << "Expected NO PacketIn without auxiliary entries, but got: "
-      << response.DebugString();
-
-  // Phase 2: WITH auxiliary entries.
-  // TODO: Inject same packet with hook enabled (or call reconcile).
-  // Verify: PacketIn arrives (punt succeeds — PRE clone session exists).
-  ASSERT_TRUE(session->StreamChannelRead(response, absl::Seconds(5)))
-      << "Expected PacketIn with auxiliary entries, but none received.";
-  EXPECT_TRUE(response.has_packet());
+  // WITH auxiliary entries: clone succeeds.
+  {
+    ASSERT_OK_AND_ASSIGN(FourwardPinsSwitch pins_switch,
+                         FourwardPinsSwitch::Create());
+    ASSERT_OK_AND_ASSIGN(auto session, SetUpSwitchWithAclTrap(pins_switch));
+    auto response =
+        InjectPacket(pins_switch, /*ingress_port=*/0, payload);
+    EXPECT_GT(OutputPacketCount(response), 0)
+        << "Expected cloned output with auxiliary entries, but got none.";
+  }
 }
 
 }  // namespace

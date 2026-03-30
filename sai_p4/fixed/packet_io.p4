@@ -17,11 +17,19 @@ control packet_in_encap(inout headers_t headers,
     if (IS_PACKET_IN_COPY(standard_metadata)) {
       // TODO: Remove guard once p4-symbolic supports assertions.
 #ifndef PLATFORM_P4SYMBOLIC
+#ifdef PLATFORM_4WARD
       assert(standard_metadata.egress_port == kCpuPort);
+#else  // Stock v1model: compare with numeric constant.
+      assert(standard_metadata.egress_port == SAI_P4_CPU_PORT);
+#endif
 #endif
     }
 
+#ifdef PLATFORM_4WARD
     if (standard_metadata.egress_port == kCpuPort) {
+#else  // Stock v1model: compare with numeric constant.
+    if (standard_metadata.egress_port == SAI_P4_CPU_PORT) {
+#endif
       // CPU-bound packets do not traverse the egress pipeline.
       local_metadata.bypass_egress = true;
 
@@ -51,7 +59,13 @@ control packet_out_decap(inout headers_t headers,
   apply {
     if (headers.packet_out_header.isValid() &&
         headers.packet_out_header.submit_to_ingress == 0) {
+#ifdef PLATFORM_4WARD
       standard_metadata.egress_spec = headers.packet_out_header.egress_port;
+#else
+      // Cast: stock v1model uses bit<9>, not port_id_t.
+      standard_metadata.egress_spec =
+          (bit<PORT_BITWIDTH>) headers.packet_out_header.egress_port;
+#endif
       // Skip the rest of the ingress pipeline.
       local_metadata.bypass_ingress = true;
     }

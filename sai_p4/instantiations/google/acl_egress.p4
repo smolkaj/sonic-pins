@@ -158,7 +158,11 @@ control acl_egress(in headers_t headers,
   apply {
     // We configure the hardware to explictly ignore the ACL egress tables for
     // CPU traffic.
+#ifdef PLATFORM_4WARD
     if (standard_metadata.egress_port != kCpuPort) {
+#else
+    if (standard_metadata.egress_port != SAI_P4_CPU_PORT) {
+#endif
       if (headers.ipv4.isValid()) {
         dscp = headers.ipv4.dscp;
         ip_protocol = headers.ipv4.protocol;

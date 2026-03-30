@@ -5,47 +5,18 @@
 #include <vector>
 
 #include "fourward/fourward_oracle.h"
+#include "fourward/test_util.h"
 #include "fourward/trace_summary.h"
 #include "gtest/gtest.h"
-#include "gutil/io.h"
 #include "gutil/status_matchers.h"
-#include "gutil/testing.h"
 #include "p4/v1/p4runtime.pb.h"
-#include "packetlib/packetlib.h"
-#include "packetlib/packetlib.pb.h"
 #include "sai_p4/instantiations/google/test_tools/test_entries.h"
-#include "tools/cpp/runfiles/runfiles.h"
 
 namespace dvaas {
 namespace {
 
-using ::bazel::tools::cpp::runfiles::Runfiles;
-using ::gutil::ParseProtoOrDie;
-
-p4::v1::ForwardingPipelineConfig LoadFourwardConfig() {
-  std::string error;
-  std::unique_ptr<Runfiles> runfiles(Runfiles::CreateForTest(&error));
-  EXPECT_NE(runfiles, nullptr) << "Failed to create Runfiles: " << error;
-  absl::StatusOr<std::string> contents = gutil::ReadFile(
-      runfiles->Rlocation("_main/fourward/sai_middleblock_fourward.binpb"));
-  EXPECT_OK(contents);
-  p4::v1::ForwardingPipelineConfig config;
-  EXPECT_TRUE(config.ParseFromString(*contents));
-  return config;
-}
-
-// Parses a packetlib textproto, pads, updates computed fields, and serializes.
-std::string SerializeTestPacket(absl::string_view textproto) {
-  packetlib::Packet packet = ParseProtoOrDie<packetlib::Packet>(textproto);
-  CHECK_OK(packetlib::PadPacketToMinimumSize(packet));
-  CHECK_OK(packetlib::UpdateAllComputedFields(packet));
-  absl::StatusOr<std::string> serialized = packetlib::SerializePacket(packet);
-  CHECK_OK(serialized);
-  return *serialized;
-}
-
 TEST(FourwardDvaasTest, Ipv4PacketIsForwardedToCorrectPort) {
-  p4::v1::ForwardingPipelineConfig config = LoadFourwardConfig();
+  p4::v1::ForwardingPipelineConfig config = LoadSaiMiddleblock4wardConfig();
   ASSERT_FALSE(config.p4info().tables().empty());
 
   ASSERT_OK_AND_ASSIGN(std::unique_ptr<FourwardOracle> oracle,
@@ -94,7 +65,7 @@ TEST(FourwardDvaasTest, Ipv4PacketIsForwardedToCorrectPort) {
 }
 
 TEST(FourwardDvaasTest, UnroutablePacketIsDropped) {
-  p4::v1::ForwardingPipelineConfig config = LoadFourwardConfig();
+  p4::v1::ForwardingPipelineConfig config = LoadSaiMiddleblock4wardConfig();
   ASSERT_OK_AND_ASSIGN(std::unique_ptr<FourwardOracle> oracle,
                        FourwardOracle::Create(config));
 

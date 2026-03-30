@@ -265,14 +265,16 @@ cc_test(
 )
 
 cc_library(
-    name = "packet_bridge",
-    srcs = ["packet_bridge.cc"],
-    hdrs = ["packet_bridge.h"],
+    name = "fourward_pins_mirror_testbed",
+    testonly = True,
+    srcs = ["fourward_pins_mirror_testbed.cc"],
+    hdrs = ["fourward_pins_mirror_testbed.h"],
     deps = [
+        ":fake_gnmi_service",
+        ":fourward_pins_switch",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
-        "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:str_format",
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
@@ -280,41 +282,6 @@ cc_library(
         "@fourward//p4runtime:dataplane_cc_proto",
         "@grpc//:grpc++",
         "@gutil//gutil:status",
-        "@openconfig_gnmi//proto/gnmi:gnmi_cc_grpc_proto",
-        "@openconfig_gnmi//proto/gnmi:gnmi_cc_proto",
-        "@re2//:re2",
-    ],
-)
-
-cc_test(
-    name = "packet_bridge_test",
-    srcs = ["packet_bridge_test.cc"],
-    data = [
-        "@fourward//p4runtime:p4runtime_server",
-    ],
-    deps = [
-        ":fake_gnmi_service",
-        ":fourward_server",
-        ":packet_bridge",
-        "@googletest//:gtest_main",
-        "@grpc//:grpc++",
-        "@gutil//gutil:status_matchers",
-        "@openconfig_gnmi//proto/gnmi:gnmi_cc_grpc_proto",
-    ],
-)
-
-cc_library(
-    name = "fourward_pins_mirror_testbed",
-    testonly = True,
-    srcs = ["fourward_pins_mirror_testbed.cc"],
-    hdrs = ["fourward_pins_mirror_testbed.h"],
-    deps = [
-        ":fourward_pins_switch",
-        ":packet_bridge",
-        "@abseil-cpp//absl/status:statusor",
-        "@grpc//:grpc++",
-        "@gutil//gutil:status",
-        "@openconfig_gnmi//proto/gnmi:gnmi_cc_grpc_proto",
         "//thinkit:bazel_test_environment",
         "//thinkit:mirror_testbed",
     ],
@@ -323,11 +290,15 @@ cc_library(
 cc_test(
     name = "fourward_pins_mirror_testbed_test",
     srcs = ["fourward_pins_mirror_testbed_test.cc"],
+    data = [
+        "@fourward//p4runtime:p4runtime_server",
+    ],
     deps = [
         ":fourward_pins_mirror_testbed",
         "@googletest//:gtest_main",
         "@gutil//gutil:status_matchers",
         "@openconfig_gnmi//proto/gnmi:gnmi_cc_grpc_proto",
+        "@p4runtime//proto/p4/v1:p4runtime_cc_grpc",
     ],
 )
 

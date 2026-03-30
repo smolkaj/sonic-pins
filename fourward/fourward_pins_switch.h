@@ -63,6 +63,9 @@ class FourwardPinsSwitch : public thinkit::Switch {
   // Creates a stub for the 4ward Dataplane service (packet injection).
   std::unique_ptr<fourward::dataplane::Dataplane::Stub> CreateDataplaneStub();
 
+  // Returns the fake gNMI service backing this switch.
+  FakeGnmiService& GnmiService() { return gnmi_server_->Service(); }
+
  private:
   FourwardPinsSwitch(FourwardServer server,
                      std::unique_ptr<FakeGnmiServer> gnmi_server);

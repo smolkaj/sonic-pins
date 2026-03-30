@@ -67,6 +67,12 @@ class FakeGnmiService final : public gnmi::gNMI::Service {
     return result;
   }
 
+  // Returns the current interface list. Thread-safe.
+  std::vector<FakeInterface> Interfaces() const {
+    absl::MutexLock lock(mu_);
+    return interfaces_;
+  }
+
   grpc::Status Get(grpc::ServerContext* /*context*/,
                    const gnmi::GetRequest* request,
                    gnmi::GetResponse* response) override {
@@ -209,7 +215,7 @@ class FakeGnmiService final : public gnmi::gNMI::Service {
         absl::StrJoin(entries, ","));
   }
 
-  absl::Mutex mu_;
+  mutable absl::Mutex mu_;
   std::vector<FakeInterface> interfaces_ ABSL_GUARDED_BY(mu_);
   std::string config_json_ ABSL_GUARDED_BY(mu_);
   std::string state_json_ ABSL_GUARDED_BY(mu_);

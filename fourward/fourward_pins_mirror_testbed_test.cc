@@ -61,12 +61,6 @@ TEST(FourwardPinsMirrorTestbedTest, CustomDeviceIds) {
   EXPECT_EQ(testbed->ControlSwitch().DeviceId(), 20);
 }
 
-TEST(FourwardPinsMirrorTestbedTest, BridgeCountersStartAtZero) {
-  ASSERT_OK_AND_ASSIGN(std::unique_ptr<FourwardPinsMirrorTestbed> testbed,
-                        FourwardPinsMirrorTestbed::Create());
-  EXPECT_EQ(testbed->PacketsForwarded(), 0);
-  EXPECT_EQ(testbed->InjectFailures(), 0);
-}
 
 }  // namespace
 }  // namespace dvaas

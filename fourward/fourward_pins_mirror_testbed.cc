@@ -54,9 +54,11 @@ FourwardPinsMirrorTestbed::Create(uint32_t sut_device_id,
       FourwardPinsSwitch::Create({.device_id = control_device_id}));
 
   // Can't use make_unique due to private constructor.
-  return std::unique_ptr<FourwardPinsMirrorTestbed>(
+  auto testbed = std::unique_ptr<FourwardPinsMirrorTestbed>(
       new FourwardPinsMirrorTestbed(std::move(sut_switch),
                                     std::move(control_switch)));
+  RETURN_IF_ERROR(testbed->StartBridge());
+  return testbed;
 }
 
 FourwardPinsMirrorTestbed::~FourwardPinsMirrorTestbed() { StopBridge(); }

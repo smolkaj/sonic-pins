@@ -30,10 +30,12 @@ namespace dvaas {
 absl::StatusOr<std::unique_ptr<FourwardPinsMirrorTestbed>>
 FourwardPinsMirrorTestbed::Create(uint32_t sut_device_id,
                                   uint32_t control_device_id) {
-  ASSIGN_OR_RETURN(FourwardPinsSwitch sut_switch,
-                   FourwardPinsSwitch::Create(sut_device_id));
-  ASSIGN_OR_RETURN(FourwardPinsSwitch control_switch,
-                   FourwardPinsSwitch::Create(control_device_id));
+  ASSIGN_OR_RETURN(
+      FourwardPinsSwitch sut_switch,
+      FourwardPinsSwitch::Create({.device_id = sut_device_id}));
+  ASSIGN_OR_RETURN(
+      FourwardPinsSwitch control_switch,
+      FourwardPinsSwitch::Create({.device_id = control_device_id}));
 
   std::string sut_address = sut_switch.ChassisName();
   std::string control_address = control_switch.ChassisName();

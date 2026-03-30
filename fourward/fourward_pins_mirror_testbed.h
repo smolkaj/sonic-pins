@@ -53,24 +53,15 @@ class FourwardPinsMirrorTestbed : public thinkit::MirrorTestbed {
   thinkit::Switch& ControlSwitch() override { return control_; }
   thinkit::TestEnvironment& Environment() override { return env_; }
 
-  // Starts packet bridging between the two switches.
-  absl::Status StartBridge();
-
-  // Stops packet bridging and joins the forwarding threads.
-  void StopBridge();
-
-  // Returns the number of packets forwarded (both directions combined).
-  int64_t PacketsForwarded() const { return packets_forwarded_.load(); }
-
-  // Returns the number of packets that failed to inject.
-  int64_t InjectFailures() const { return inject_failures_.load(); }
-
  private:
   explicit FourwardPinsMirrorTestbed(FourwardPinsSwitch sut,
                                      FourwardPinsSwitch control)
       : sut_(std::move(sut)),
         control_(std::move(control)),
         env_(/*mask_known_failures=*/false) {}
+
+  absl::Status StartBridge();
+  void StopBridge();
 
   // Resolves a dataplane port on `from_switch` to the corresponding port on
   // `to_switch` via matching interface names in their FakeGnmiService.

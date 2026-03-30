@@ -1,11 +1,13 @@
 // v1model wrapper for SAI P4.
 //
-// When compiled with -DPLATFORM_4WARD (p4c-4ward), port fields use `type`
-// (newtype) with @p4runtime_translation, giving the 4ward simulator typed
-// string ports. For all other targets (BMv2, p4-symbolic, p4testgen), this
-// file just includes stock <v1model.p4>.
+// For most targets (BMv2, p4-symbolic, p4testgen), this file just includes
+// stock <v1model.p4>. When compiled with -DPLATFORM_4WARD, it provides a
+// forked v1model with port_id_t on standard_metadata, giving the 4ward
+// simulator typed string ports via @p4runtime_translation.
 
-#ifdef PLATFORM_4WARD
+#ifndef PLATFORM_4WARD
+#include <v1model.p4>
+#else  // PLATFORM_4WARD
 
 // -- 4ward path: full v1model fork with typed ports -------------------------
 
@@ -67,11 +69,9 @@ match_kind {
 
 const bit<32> __v1model_version = V1MODEL_VERSION;
 
-// Include bitwidths.p4 to get PORT_BITWIDTH (set per platform in bitwidths.p4).
-#include "../../instantiations/google/bitwidths.p4"
-// port_id_t must be defined here (before standard_metadata_t) rather than
-// in metadata.p4, because v1model_sai.p4 is included first. metadata.p4
-// guards its definition with #ifndef PLATFORM_4WARD to avoid duplicates.
+// PORT_BITWIDTH must be known before defining port_id_t and standard_metadata_t.
+// metadata.p4 guards its port_id_t with #ifndef PLATFORM_4WARD to avoid
+// conflicting with this definition.
 #include "../../instantiations/google/bitwidths.p4"
 @p4runtime_translation_mappings({
   {"CPU_PORT", 510},
@@ -780,11 +780,5 @@ package V1Switch<H, M>(Parser<H, M> p,
                        );
 
 #endif  /* _V1_MODEL_P4_ */
-
-#else  // !PLATFORM_4WARD
-
-// -- Standard path: stock v1model, port_id_t from metadata.p4 ---------------
-
-#include <v1model.p4>
 
 #endif  // PLATFORM_4WARD

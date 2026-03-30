@@ -1,7 +1,7 @@
 #ifndef SAI_PARSER_P4_
 #define SAI_PARSER_P4_
 
-#include <v1model.p4>
+#include "v1model_sai.p4"
 #include "headers.p4"
 #include "ids.h"
 #include "metadata.p4"
@@ -57,14 +57,13 @@ parser packet_parser(packet_in packet, out headers_t headers,
     local_metadata.redirect_port = 0;
     local_metadata.acl_ingress_nexthop_redirect = false;
     // LINT.ThenChange()
-    
-  // port_id_t (newtype) cannot appear in select; compare explicitly.
+
 #ifdef PLATFORM_4WARD
-  transition select(standard_metadata.ingress_port == kCpuPort) {
+    transition select(standard_metadata.ingress_port == kCpuPort) {
       true : parse_packet_out_header;
       false: parse_ethernet;
 #else
-  transition select(standard_metadata.ingress_port) {
+    transition select(standard_metadata.ingress_port) {
       SAI_P4_CPU_PORT: parse_packet_out_header;
       _              : parse_ethernet;
 #endif

@@ -1,7 +1,7 @@
 #ifndef SAI_PACKET_IO_P4_
 #define SAI_PACKET_IO_P4_
 
-#include <v1model.p4>
+#include "v1model_sai.p4"
 #include "headers.p4"
 #include "metadata.p4"
 #include "ids.h"
@@ -19,7 +19,7 @@ control packet_in_encap(inout headers_t headers,
 #ifndef PLATFORM_P4SYMBOLIC
 #ifdef PLATFORM_4WARD
       assert(standard_metadata.egress_port == kCpuPort);
-#else
+#else  // Stock v1model: compare with numeric constant.
       assert(standard_metadata.egress_port == SAI_P4_CPU_PORT);
 #endif
 #endif
@@ -27,7 +27,7 @@ control packet_in_encap(inout headers_t headers,
 
 #ifdef PLATFORM_4WARD
     if (standard_metadata.egress_port == kCpuPort) {
-#else
+#else  // Stock v1model: compare with numeric constant.
     if (standard_metadata.egress_port == SAI_P4_CPU_PORT) {
 #endif
       // CPU-bound packets do not traverse the egress pipeline.
@@ -60,10 +60,9 @@ control packet_out_decap(inout headers_t headers,
     if (headers.packet_out_header.isValid() &&
         headers.packet_out_header.submit_to_ingress == 0) {
 #ifdef PLATFORM_4WARD
-      // No cast needed — standard_metadata uses port_id_t.
       standard_metadata.egress_spec = headers.packet_out_header.egress_port;
 #else
-      // Cast needed — v1model uses bit<9>, not port_id_t.
+      // Cast: stock v1model uses bit<9>, not port_id_t.
       standard_metadata.egress_spec =
           (bit<PORT_BITWIDTH>) headers.packet_out_header.egress_port;
 #endif

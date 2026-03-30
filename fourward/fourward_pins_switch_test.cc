@@ -141,7 +141,7 @@ TEST(FourwardPinsSwitchTest, AclTrapPuntsPacketWithAuxEntries) {
 
 // L3 forwarding requires VLAN check disable entries. Without them,
 // packets are dropped before reaching the routing tables.
-TEST(FourwardPinsSwitchTest, DISABLED_L3ForwardingWorksWithAuxEntries) {
+TEST(FourwardPinsSwitchTest, L3ForwardingWorksWithAuxEntries) {
   ASSERT_OK_AND_ASSIGN(FourwardPinsSwitch pins_switch,
                        FourwardPinsSwitch::Create());
   ASSERT_OK_AND_ASSIGN(

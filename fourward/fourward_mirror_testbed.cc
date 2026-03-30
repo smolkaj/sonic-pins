@@ -22,6 +22,7 @@
 #include "absl/status/statusor.h"
 #include "fourward/fourward_switch.h"
 #include "fourward/packet_bridge.h"
+#include "github.com/openconfig/gnmi/proto/gnmi/gnmi.grpc.pb.h"
 #include "gutil/status.h"
 
 namespace dvaas {
@@ -37,8 +38,14 @@ FourwardMirrorTestbed::Create(uint32_t sut_device_id,
   std::string sut_address = sut_switch.ChassisName();
   std::string control_address = control_switch.ChassisName();
 
-  std::unique_ptr<PacketBridge> bridge =
-      std::make_unique<PacketBridge>(sut_address, control_address);
+  ASSIGN_OR_RETURN(auto sut_gnmi_stub, sut_switch.CreateGnmiStub());
+  ASSIGN_OR_RETURN(auto control_gnmi_stub, control_switch.CreateGnmiStub());
+
+  std::unique_ptr<PacketBridge> bridge = std::make_unique<PacketBridge>(
+      sut_address, control_address,
+      std::shared_ptr<gnmi::gNMI::StubInterface>(std::move(sut_gnmi_stub)),
+      std::shared_ptr<gnmi::gNMI::StubInterface>(
+          std::move(control_gnmi_stub)));
 
   // Can't use make_unique due to private constructor.
   return std::unique_ptr<FourwardMirrorTestbed>(new FourwardMirrorTestbed(

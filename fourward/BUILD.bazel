@@ -227,11 +227,18 @@ cc_library(
     deps = [
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:str_format",
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
         "@fourward//p4runtime:dataplane_cc_grpc",
         "@fourward//p4runtime:dataplane_cc_proto",
         "@grpc//:grpc++",
+        "@gutil//gutil:status",
+        "@openconfig_gnmi//proto/gnmi:gnmi_cc_grpc_proto",
+        "@openconfig_gnmi//proto/gnmi:gnmi_cc_proto",
+        "@re2//:re2",
     ],
 )
 
@@ -242,10 +249,13 @@ cc_test(
         "@fourward//p4runtime:p4runtime_server",
     ],
     deps = [
+        ":fake_gnmi_service",
         ":fourward_server",
         ":packet_bridge",
         "@googletest//:gtest_main",
+        "@grpc//:grpc++",
         "@gutil//gutil:status_matchers",
+        "@openconfig_gnmi//proto/gnmi:gnmi_cc_grpc_proto",
     ],
 )
 
@@ -258,7 +268,9 @@ cc_library(
         ":fourward_switch",
         ":packet_bridge",
         "@abseil-cpp//absl/status:statusor",
+        "@grpc//:grpc++",
         "@gutil//gutil:status",
+        "@openconfig_gnmi//proto/gnmi:gnmi_cc_grpc_proto",
         "//thinkit:bazel_test_environment",
         "//thinkit:mirror_testbed",
     ],

@@ -2,6 +2,7 @@
 #define SAI_ROLES_P4_
 
 #define P4RUNTIME_ROLE_SDN_CONTROLLER "sdn_controller"
+#define P4RUNTIME_ROLE_PINS_AUXILIARY "pins_auxiliary"
 
 // Instantiations of SAI P4 can override these roles by defining the macros.
 

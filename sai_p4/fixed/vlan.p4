@@ -31,6 +31,7 @@ control vlan_untag(inout headers_t headers,
     // Force the dummy_match to be wildcard.
     dummy_match::mask == 0;
   ")
+  @p4runtime_role(P4RUNTIME_ROLE_PINS_AUXILIARY)
   table disable_vlan_checks_table {
     key = {
       // Note: In the P4_16 specification, a table with no match keys cannot have
@@ -97,6 +98,7 @@ control ingress_vlan_checks(inout headers_t headers,
     // Force the dummy_match to be wildcard.
     dummy_match::prefix_length == 0;
   ")
+  @p4runtime_role(P4RUNTIME_ROLE_PINS_AUXILIARY)
   table disable_ingress_vlan_checks_table {
     key = {
       // Note: In the P4_16 specification, a table with no match keys cannot
@@ -158,6 +160,7 @@ control egress_vlan_checks(inout headers_t headers,
     // Force the dummy_match to be wildcard.
     dummy_match::prefix_length == 0;
   ")
+  @p4runtime_role(P4RUNTIME_ROLE_PINS_AUXILIARY)
   table disable_egress_vlan_checks_table {
     key = {
       // Note: In the P4_16 specification, a table with no match keys cannot

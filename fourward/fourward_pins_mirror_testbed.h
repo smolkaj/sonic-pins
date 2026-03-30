@@ -42,8 +42,8 @@ namespace dvaas {
 // FakeGnmiService lookups for port resolution.
 class FourwardPinsMirrorTestbed : public thinkit::MirrorTestbed {
  public:
-  // Creates a testbed with two FourwardPinsSwitch instances. Call
-  // StartBridge() after loading pipelines to enable packet forwarding.
+  // Creates a testbed with two FourwardPinsSwitch instances and starts
+  // packet bridging between them.
   static absl::StatusOr<std::unique_ptr<FourwardPinsMirrorTestbed>> Create(
       uint32_t sut_device_id = 1, uint32_t control_device_id = 2);
 
@@ -53,24 +53,15 @@ class FourwardPinsMirrorTestbed : public thinkit::MirrorTestbed {
   thinkit::Switch& ControlSwitch() override { return control_; }
   thinkit::TestEnvironment& Environment() override { return env_; }
 
-  // Starts packet bridging between the two switches.
-  absl::Status StartBridge();
-
-  // Stops packet bridging and joins the forwarding threads.
-  void StopBridge();
-
-  // Returns the number of packets forwarded (both directions combined).
-  int64_t PacketsForwarded() const { return packets_forwarded_.load(); }
-
-  // Returns the number of packets that failed to inject.
-  int64_t InjectFailures() const { return inject_failures_.load(); }
-
  private:
   explicit FourwardPinsMirrorTestbed(FourwardPinsSwitch sut,
                                      FourwardPinsSwitch control)
       : sut_(std::move(sut)),
         control_(std::move(control)),
         env_(/*mask_known_failures=*/false) {}
+
+  absl::Status StartBridge();
+  void StopBridge();
 
   // Resolves a dataplane port on `from_switch` to the corresponding port on
   // `to_switch` via matching interface names in their FakeGnmiService.

@@ -66,13 +66,13 @@ TEST(FourwardPinsSwitchPortTest,
      DISABLED_BridgeRoutesByInterfaceName) {
   // SUT: "Ethernet0" → P4RT ID "1" (dataplane port 1)
   ASSERT_OK_AND_ASSIGN(FourwardPinsSwitch sut,
-                        FourwardPinsSwitch::Create(/*device_id=*/1));
+                        FourwardPinsSwitch::Create({.device_id = 1}));
 
   // Control: "Ethernet0" → P4RT ID "5" (dataplane port 5)
   // TODO: Create with custom FakeInterface list where Ethernet0 has
   // p4rt_id = 5.
   ASSERT_OK_AND_ASSIGN(FourwardPinsSwitch control,
-                        FourwardPinsSwitch::Create(/*device_id=*/2));
+                        FourwardPinsSwitch::Create({.device_id = 2}));
 
   // TODO: Start PacketBridge between them.
   // TODO: Install forwarding on SUT to output on SUT's "Ethernet0".

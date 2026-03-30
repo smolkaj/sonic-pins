@@ -62,18 +62,22 @@ FourwardOracle::FourwardOracle(
       session_(std::move(session)) {}
 
 absl::StatusOr<std::unique_ptr<FourwardOracle>> FourwardOracle::Create(
-    const p4::v1::ForwardingPipelineConfig& pipeline_config,
-    uint32_t device_id) {
-  ASSIGN_OR_RETURN(FourwardServer server, FourwardServer::Start(device_id));
+    const p4::v1::ForwardingPipelineConfig& pipeline_config) {
+  constexpr uint32_t kDeviceId = 1;
+  ASSIGN_OR_RETURN(FourwardServer server, FourwardServer::Start(kDeviceId));
 
   std::shared_ptr<grpc::Channel> channel = grpc::CreateChannel(
       server.Address(), grpc::InsecureChannelCredentials());
   std::unique_ptr<p4::v1::P4Runtime::StubInterface> stub =
       p4::v1::P4Runtime::NewStub(channel);
 
-  ASSIGN_OR_RETURN(std::unique_ptr<p4_runtime::P4RuntimeSession> session,
-                   p4_runtime::P4RuntimeSession::Create(
-                       std::move(stub), device_id));
+  // Use the default role ("") for full pipeline access — the oracle is a
+  // prediction engine, not a controller bound to a specific role.
+  ASSIGN_OR_RETURN(
+      std::unique_ptr<p4_runtime::P4RuntimeSession> session,
+      p4_runtime::P4RuntimeSession::Create(
+          std::move(stub), kDeviceId,
+          p4_runtime::P4RuntimeSessionOptionalArgs{.role = ""}));
 
   RETURN_IF_ERROR(p4_runtime::SetMetadataAndSetForwardingPipelineConfig(
       session.get(),

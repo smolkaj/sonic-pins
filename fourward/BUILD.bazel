@@ -310,10 +310,13 @@ cc_test(
         ":fourward_oracle",
         ":test_util",
         ":trace_summary",
+        "//p4_infra/p4_runtime:p4_runtime_session",
         "//sai_p4/instantiations/google/test_tools:test_entries",
         "@googletest//:gtest_main",
+        "@grpc//:grpc++",
         "@gutil//gutil:status_matchers",
         "@p4_infra//p4_pdpi:ir_cc_proto",
+        "@p4runtime//proto/p4/v1:p4runtime_cc_grpc",
         "@p4runtime//proto/p4/v1:p4runtime_cc_proto",
     ],
 )

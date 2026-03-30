@@ -95,10 +95,9 @@ void LoadPipelineAndInstallEntries(
       sut_session.get(),
       p4::v1::SetForwardingPipelineConfigRequest::RECONCILE_AND_COMMIT,
       config));
+  // VLAN disable entries are now installed automatically by FourwardPinsSwitch
+  // via the pre-packet hook — only user forwarding entries here.
   ASSERT_OK(sai::EntryBuilder()
-                .AddDisableVlanChecksEntry()
-                .AddDisableIngressVlanChecksEntry()
-                .AddDisableEgressVlanChecksEntry()
                 .AddEntriesForwardingIpPacketsToGivenPort("1")
                 .InstallDedupedEntities(*sut_session));
 
@@ -186,11 +185,12 @@ TEST(PortablePinsBackendTest,
   ASSERT_OK_AND_ASSIGN(pdpi::IrP4Info ir_p4info,
                        pdpi::CreateIrP4Info(fourward_config.p4info()));
 
-  // Build IR entities for forwarding.
+  // Build IR entities for forwarding. VLAN disable entries belong to the
+  // pins_auxiliary role and are installed by FourwardPinsSwitch's pre-packet
+  // hook, not by the sdn_controller session.
   ASSERT_OK_AND_ASSIGN(
       pdpi::IrEntities ir_entities,
       sai::EntryBuilder()
-          .AddDisableVlanChecksEntry()
           .AddEntriesForwardingIpPacketsToGivenPort("1")
           .GetDedupedIrEntities(ir_p4info));
 
@@ -268,9 +268,9 @@ TEST(PortablePinsBackendTest, BackendWorksEndToEndWithFourwardTestbed) {
       p4::v1::SetForwardingPipelineConfigRequest::RECONCILE_AND_COMMIT,
       fourward_config));
 
-  // Install forwarding entries on the SUT.
+  // Install forwarding entries on the SUT. VLAN disable entries are installed
+  // automatically by FourwardPinsSwitch via the pre-packet hook.
   ASSERT_OK(sai::EntryBuilder()
-                .AddDisableVlanChecksEntry()
                 .AddEntriesForwardingIpPacketsToGivenPort("1")
                 .InstallDedupedEntities(*sut_session));
 

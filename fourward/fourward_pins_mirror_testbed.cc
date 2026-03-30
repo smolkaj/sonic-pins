@@ -94,8 +94,8 @@ void FourwardPinsMirrorTestbed::StopBridge() {
   running_.store(false);
   {
     std::lock_guard<std::mutex> lock(contexts_mu_);
-    if (sut_subscribe_ctx_) sut_subscribe_ctx_->TryCancel();
-    if (control_subscribe_ctx_) control_subscribe_ctx_->TryCancel();
+    if (sut_subscribe_ctx_ != nullptr) sut_subscribe_ctx_->TryCancel();
+    if (control_subscribe_ctx_ != nullptr) control_subscribe_ctx_->TryCancel();
   }
   if (sut_to_control_.joinable()) sut_to_control_.join();
   if (control_to_sut_.joinable()) control_to_sut_.join();

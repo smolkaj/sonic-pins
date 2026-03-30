@@ -16,11 +16,14 @@
 
 #include <memory>
 #include <optional>
+#include <string>
 #include <utility>
 #include <vector>
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/numbers.h"
+#include "absl/strings/str_cat.h"
 #include "absl/time/time.h"
 #include "absl/types/span.h"
 #include "dvaas/dataplane_validation.h"
@@ -30,20 +33,36 @@
 #include "dvaas/test_vector.pb.h"
 #include "fourward/fourward_oracle.h"
 #include "fourward/test_vector_generation.h"
+#include "github.com/openconfig/gnmi/proto/gnmi/gnmi.grpc.pb.h"
 #include "gutil/status.h"
 #include "lib/p4rt/p4rt_port.h"
 #include "p4/config/v1/p4info.pb.h"
 #include "p4/v1/p4runtime.pb.h"
 #include "p4_infra/p4_runtime/p4_runtime_session.h"
+#include "p4_pdpi/ir.h"
 #include "p4_pdpi/ir.pb.h"
 #include "p4_symbolic/packet_synthesizer/coverage_goal.pb.h"
+#include "p4_symbolic/packet_synthesizer/criteria_generator.h"
+#include "p4_symbolic/packet_synthesizer/packet_synthesizer.h"
 #include "p4_symbolic/packet_synthesizer/packet_synthesizer.pb.h"
+#include "p4_symbolic/sai/sai.h"
+#include "p4_symbolic/sai/sai_coverage_goals.h"
 #include "sai_p4/instantiations/google/test_tools/test_entries.h"
 #include "sai_p4/tools/auxiliary_entries_for_v1model_targets.h"
-#include "github.com/openconfig/gnmi/proto/gnmi/gnmi.grpc.pb.h"
 
 namespace dvaas {
 namespace {
+
+using p4_symbolic::packet_synthesizer::CoverageGoals;
+using p4_symbolic::packet_synthesizer::GenerateSynthesisCriteriaFor;
+using p4_symbolic::packet_synthesizer::PacketSynthesisCriteria;
+using p4_symbolic::packet_synthesizer::PacketSynthesisParams;
+using p4_symbolic::packet_synthesizer::PacketSynthesizer;
+using p4_symbolic::packet_synthesizer::SaiDefaultCoverageGoals;
+using p4_symbolic::packet_synthesizer::TranslationData;
+// Disambiguate from dvaas::PacketSynthesisResult (the return type).
+using SynthesizerResult =
+    p4_symbolic::packet_synthesizer::PacketSynthesisResult;
 
 class PortablePinsBackend : public DataplaneValidationBackend {
  public:
@@ -58,10 +77,59 @@ class PortablePinsBackend : public DataplaneValidationBackend {
       const std::optional<p4_symbolic::packet_synthesizer::CoverageGoals>&
           coverage_goals_override,
       std::optional<absl::Duration> time_limit) const override {
-    return absl::UnimplementedError(
-        "Packet synthesis is not yet implemented in the portable PINS "
-        "backend. Use DataplaneValidationParams::packet_test_vector_override "
-        "to provide test vectors manually.");
+    // TODO: Forward time_limit and write_stats to the synthesizer once
+    // it supports per-call timeouts and statistics callbacks.
+    //
+    // We use the criteria-based API (Create + SynthesizePacket per criteria)
+    // rather than SynthesizePacketsForPathCoverage because it supports
+    // CoverageGoals — entry coverage × packet fate, which is much cheaper
+    // than full path coverage.
+    ASSIGN_OR_RETURN(std::vector<p4::v1::Entity> pi_entities,
+                     pdpi::IrEntitiesToPi(ir_p4info, ir_entities));
+
+    PacketSynthesisParams params;
+    *params.mutable_pipeline_config() = p4_symbolic_config;
+    for (p4::v1::Entity& entity : pi_entities) {
+      *params.add_pi_entities() = std::move(entity);
+    }
+
+    TranslationData& port_translation =
+        (*params.mutable_translation_per_type())
+            [std::string(p4_symbolic::kPortIdTypeName)];
+    for (const pins_test::P4rtPortId& port : ports) {
+      int port_number;
+      if (!absl::SimpleAtoi(port.GetP4rtEncoding(), &port_number)) {
+        return absl::InvalidArgumentError(absl::StrCat(
+            "Non-numeric P4RT port ID: ", port.GetP4rtEncoding()));
+      }
+      params.add_physical_port(port_number);
+      TranslationData::StaticMapping& mapping =
+          *port_translation.add_static_mapping();
+      mapping.set_string_value(port.GetP4rtEncoding());
+      mapping.set_integer_value(port_number);
+    }
+
+    ASSIGN_OR_RETURN(std::unique_ptr<PacketSynthesizer> synthesizer,
+                     PacketSynthesizer::Create(params));
+
+    const CoverageGoals& goals = coverage_goals_override.has_value()
+                                     ? *coverage_goals_override
+                                     : SaiDefaultCoverageGoals();
+    ASSIGN_OR_RETURN(
+        std::vector<PacketSynthesisCriteria> criteria_list,
+        GenerateSynthesisCriteriaFor(goals, synthesizer->SolverState()));
+
+    PacketSynthesisResult result;
+    result.synthesized_packets.reserve(criteria_list.size());
+    for (const PacketSynthesisCriteria& criterion : criteria_list) {
+      ASSIGN_OR_RETURN(SynthesizerResult synthesis_result,
+                       synthesizer->SynthesizePacket(criterion));
+      if (synthesis_result.has_synthesized_packet()) {
+        result.synthesized_packets.push_back(
+            std::move(*synthesis_result.mutable_synthesized_packet()));
+      }
+    }
+    return result;
   }
 
   absl::StatusOr<PacketTestVectorById> GeneratePacketTestVectors(

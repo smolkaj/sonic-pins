@@ -10,44 +10,16 @@
 #include <memory>
 #include <string>
 
+#include "fourward/test_util.h"
 #include "gtest/gtest.h"
-#include "gutil/io.h"
 #include "gutil/status_matchers.h"
-#include "gutil/testing.h"
 #include "p4/v1/p4runtime.pb.h"
 #include "p4_infra/p4_runtime/p4_runtime_session.h"
 #include "p4_infra/p4_runtime/p4_runtime_session_extras.h"
-#include "packetlib/packetlib.h"
-#include "packetlib/packetlib.pb.h"
 #include "sai_p4/instantiations/google/test_tools/test_entries.h"
-#include "tools/cpp/runfiles/runfiles.h"
 
 namespace dvaas {
 namespace {
-
-using ::bazel::tools::cpp::runfiles::Runfiles;
-using ::gutil::ParseProtoOrDie;
-
-p4::v1::ForwardingPipelineConfig LoadFourwardConfig() {
-  std::string error;
-  std::unique_ptr<Runfiles> runfiles(Runfiles::CreateForTest(&error));
-  EXPECT_NE(runfiles, nullptr) << "Failed to create Runfiles: " << error;
-  absl::StatusOr<std::string> contents = gutil::ReadFile(
-      runfiles->Rlocation("_main/fourward/sai_middleblock_fourward.binpb"));
-  EXPECT_OK(contents);
-  p4::v1::ForwardingPipelineConfig config;
-  EXPECT_TRUE(config.ParseFromString(*contents));
-  return config;
-}
-
-std::string SerializeTestPacket(absl::string_view textproto) {
-  packetlib::Packet packet = ParseProtoOrDie<packetlib::Packet>(textproto);
-  CHECK_OK(packetlib::PadPacketToMinimumSize(packet));
-  CHECK_OK(packetlib::UpdateAllComputedFields(packet));
-  absl::StatusOr<std::string> serialized = packetlib::SerializePacket(packet);
-  CHECK_OK(serialized);
-  return *serialized;
-}
 
 constexpr absl::string_view kUdpPacket = R"pb(
   headers {
@@ -79,7 +51,7 @@ constexpr absl::string_view kUdpPacket = R"pb(
 // the P4Runtime session (which must outlive the switch for StreamChannel).
 absl::StatusOr<std::unique_ptr<p4_runtime::P4RuntimeSession>>
 SetUpSwitchWithAclTrap(FourwardPinsSwitch& pins_switch) {
-  p4::v1::ForwardingPipelineConfig config = LoadFourwardConfig();
+  p4::v1::ForwardingPipelineConfig config = LoadSaiMiddleblock4wardConfig();
   ASSIGN_OR_RETURN(std::unique_ptr<p4_runtime::P4RuntimeSession> session,
                    p4_runtime::P4RuntimeSession::Create(pins_switch));
   RETURN_IF_ERROR(p4_runtime::SetMetadataAndSetForwardingPipelineConfig(
@@ -147,7 +119,7 @@ TEST(FourwardPinsSwitchTest, DISABLED_L3ForwardingWorksWithAuxEntries) {
   ASSERT_OK_AND_ASSIGN(
       std::unique_ptr<p4_runtime::P4RuntimeSession> session,
       p4_runtime::P4RuntimeSession::Create(pins_switch));
-  p4::v1::ForwardingPipelineConfig config = LoadFourwardConfig();
+  p4::v1::ForwardingPipelineConfig config = LoadSaiMiddleblock4wardConfig();
   ASSERT_OK(p4_runtime::SetMetadataAndSetForwardingPipelineConfig(
       session.get(),
       p4::v1::SetForwardingPipelineConfigRequest::RECONCILE_AND_COMMIT,

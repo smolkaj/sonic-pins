@@ -1,4 +1,4 @@
-# fourward/ — Agent Guide
+# sonic-pins — Agent Guide
 
 **Always work in a dedicated git worktree — never modify the main tree
 directly.** Create one with:
@@ -7,19 +7,22 @@ directly.** Create one with:
 git worktree add ../sonic-pins-<branch> -b <branch>
 ```
 
+## Understand ideal before settling for less
+
+Before committing to any design or implementation, define what the ideal
+solution looks like — unconstrained by schedule, legacy, or expedience.
+You don't have to build the ideal, but you must understand it. A pragmatic
+shortcut is a legitimate engineering choice; a shortcut you took because you
+never considered the alternative is just a blind spot. Name the north star,
+name what you're trading away, and name why.
+
 ## Repository map
 
 ```
-fourward/fourward_server.{h,cc}       RAII subprocess manager for 4ward servers.
-fourward/fourward_switch.{h,cc}       thinkit::Switch backed by a FourwardServer.
-fourward/fourward_oracle.{h,cc}       Output + trace prediction via InjectPackets RPC.
-fourward/fake_gnmi_service.h          In-process fake gNMI for port discovery.
-fourward/packet_bridge.{h,cc}         Emulates back-to-back links between two instances.
-fourward/fourward_mirror_testbed.h    thinkit::MirrorTestbed (two 4ward + gNMI + bridge).
-fourward/trace_conversion.{h,cc}      TraceTree → PacketTrace conversion.
-fourward/BUILD.bazel                  All build targets.
+dvaas/portable_pins_backend/          Open-source DVaaS backend using 4ward as reference model.
+fourward/                             4ward integration (subprocess, oracle, testbed, bridge).
+fourward/designs/                     Design documents (architecture decisions, feature proposals).
 fourward/README.md                    Architecture overview and component docs.
-fourward/AGENTS.md                    This file.
 ```
 
 Unit tests live alongside the source: `foo_test.cc` next to `foo.{h,cc}`.

@@ -56,7 +56,7 @@ TEST(FourwardDvaasTest, Ipv4PacketIsForwardedToCorrectPort) {
 
   ASSERT_OK_AND_ASSIGN(
       std::vector<PacketPrediction> predictions,
-      oracle->PredictAll({{.ingress_port = "0", .payload = packet}}));
+      oracle->PredictAll({{.ingress_port = "1", .payload = packet}}));
   ASSERT_EQ(predictions.size(), 1);
   ASSERT_EQ(predictions[0].output_packets.size(), 1)
       << "Expected packet to be forwarded, but got dropped.\n"
@@ -97,7 +97,7 @@ TEST(FourwardDvaasTest, UnroutablePacketIsDropped) {
 
   ASSERT_OK_AND_ASSIGN(
       std::vector<PacketPrediction> predictions,
-      oracle->PredictAll({{.ingress_port = "0", .payload = packet}}));
+      oracle->PredictAll({{.ingress_port = "1", .payload = packet}}));
   ASSERT_EQ(predictions.size(), 1);
   EXPECT_TRUE(predictions[0].output_packets.empty());
   EXPECT_GT(predictions[0].trace.events_size(), 0);

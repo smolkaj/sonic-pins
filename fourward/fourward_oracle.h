@@ -14,7 +14,6 @@
 #ifndef PINS_FOURWARD_FOURWARD_ORACLE_H_
 #define PINS_FOURWARD_FOURWARD_ORACLE_H_
 
-#include <cstdint>
 #include <memory>
 #include <string>
 #include <vector>
@@ -49,8 +48,7 @@ class FourwardOracle {
  public:
   // Starts a 4ward server subprocess and loads the given pipeline config.
   static absl::StatusOr<std::unique_ptr<FourwardOracle>> Create(
-      const p4::v1::ForwardingPipelineConfig& pipeline_config,
-      uint32_t device_id = 1);
+      const p4::v1::ForwardingPipelineConfig& pipeline_config);
 
   absl::Status InstallIrEntities(const pdpi::IrEntities& ir_entities);
 

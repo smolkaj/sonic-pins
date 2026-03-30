@@ -1,6 +1,6 @@
 # FourwardPinsSwitch: Auxiliary Entry Design
 
-**Status: proposal**
+**Status: implemented** (updated 2026-03-30)
 
 ## Goal
 
@@ -166,22 +166,24 @@ typically do concurrent gNMI Set + packet injection, and the
 serialization is correct behavior (config changes don't take effect
 mid-packet on real switches either).
 
-## TODO: Clarify FourwardPinsSwitch contract
-
-The class header and docs need to clearly communicate what
-`FourwardPinsSwitch` is: **a simulated PINS switch**, not just a thin
-wrapper around a 4ward server. It implements `thinkit::Switch` with the
-same observable behavior as a real PINS switch — P4 data plane, gNMI
-config, and the control plane glue that bridges them. Tests using a
-`FourwardPinsSwitch` should not need to know it's simulated.
-
-## Implementation plan
+## Implementation status
 
 1. **Rename** `FourwardSwitch` → `FourwardPinsSwitch`,
-   `FourwardMirrorTestbed` → `FourwardPinsMirrorTestbed`. (Done.)
-2. **Add `pins_auxiliary` role** to SAI P4 for auxiliary tables.
-3. **4ward:** add pre-packet hook RPC to Dataplane service, add gNMI lock
-   to FakeGnmiService.
-4. **sonic-pins:** register hook in `FourwardPinsSwitch`, call
-   `sai::CreateV1ModelAuxiliaryEntities` in the callback, respond with
-   updates.
+   `FourwardMirrorTestbed` → `FourwardPinsMirrorTestbed`. Done (sonic-pins#49).
+2. **Add `pins_auxiliary` role** to SAI P4 VLAN disable tables. Done (sonic-pins#47).
+3. **4ward:** pre-packet hook RPC on Dataplane service, carrying entity
+   snapshot and P4Info. Done (4ward#466, #469, #471).
+4. **sonic-pins:** register hook in `FourwardPinsSwitch`, derive auxiliary
+   entries (static + entity-dependent via `CreateV1ModelAuxiliaryEntities`),
+   respond with delta updates. Done (sonic-pins#52, #54).
+
+## Open items
+
+- **VLAN disable condition.** Currently unconditionally disabled. Should be
+  conditional on gNMI config (`SAI_DISABLE_VLAN_CHECKS`). The triggering
+  signal is not yet understood.
+- **Role-based read filtering.** Wildcard P4Runtime reads by `sdn_controller`
+  should not return entries installed under `pins_auxiliary`. Requires 4ward
+  server changes.
+- **Move static entry builders** (`MakeIngressCloneTableEntryForPunts`,
+  `MakeVlanDisableEntry`) to `sai_p4/tools/auxiliary_entries_for_v1model_targets.{h,cc}`.

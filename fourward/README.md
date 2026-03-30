@@ -31,8 +31,13 @@ parse the port from the startup banner, and kill the process on destruction
 
 ### FourwardPinsSwitch (`fourward_pins_switch.h`)
 
-`thinkit::Switch` backed by a `FourwardServer`. Starts its own server
-subprocess via `FourwardPinsSwitch::Create()`.
+Simulated PINS switch implementing `thinkit::Switch`. Owns a `FourwardServer`
+subprocess, an in-process `FakeGnmiServer`, and a pre-packet hook that
+automatically installs auxiliary P4 entries (PRE clone sessions,
+`ingress_clone_table` entries, VLAN disable entries, and entity-dependent
+entries derived by `sai::CreateV1ModelAuxiliaryEntities`). Tests using a
+`FourwardPinsSwitch` should not need to know it's simulated — it behaves like
+a real PINS switch.
 
 ### FourwardOracle (`fourward_oracle.h`)
 

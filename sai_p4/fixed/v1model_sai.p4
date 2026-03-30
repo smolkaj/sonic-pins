@@ -1,10 +1,13 @@
-// Forked v1model for SAI P4.
+// v1model wrapper for SAI P4.
 //
-// Changes from stock v1model:
-// - Port type uses `type` (newtype) instead of `typedef`, with
-//   @p4runtime_translation for string port names.
-// - Port width uses PORT_BITWIDTH (from bitwidths.p4) instead of
-//   hardcoded 9 bits.
+// When compiled with -DFOURWARD (p4c-4ward), port fields use `type` (newtype)
+// with @p4runtime_translation, giving the 4ward simulator typed string ports.
+// For all other targets (BMv2, p4-symbolic, p4testgen), this file includes
+// stock <v1model.p4> unchanged and defines port_id_t as a plain typedef.
+
+#ifdef FOURWARD
+
+// -- 4ward path: full v1model fork with typed ports -------------------------
 
 /*
 Copyright 2013-present Barefoot Networks, Inc.
@@ -64,15 +67,10 @@ match_kind {
 
 const bit<32> __v1model_version = V1MODEL_VERSION;
 
-// SAI P4 fork: port type is a newtype with @p4runtime_translation,
-// replacing the stock typedef. PORT_BITWIDTH must be defined before
-// including this file.
 #ifndef PORT_BITWIDTH
 #error "PORT_BITWIDTH must be defined before including v1model_sai.p4"
 #endif
-// Pin well-known ports so they get deterministic P4RT names instead of
-// auto-allocated values. Values match SAI_P4_CPU_PORT / SAI_P4_DROP_PORT
-// in ids.h; raw literals used here to avoid an #include dependency.
+// Typed port with @p4runtime_translation: gives 4ward string port names.
 @p4runtime_translation_mappings({
   {"CPU_PORT", 510},
   {"DROP_PORT", 511},
@@ -780,3 +778,21 @@ package V1Switch<H, M>(Parser<H, M> p,
                        );
 
 #endif  /* _V1_MODEL_P4_ */
+
+#else  // !FOURWARD
+
+// -- Standard path: stock v1model + port_id_t typedef -----------------------
+
+#include <v1model.p4>
+
+#ifndef _V1MODEL_SAI_PORT_ID_T_
+#define _V1MODEL_SAI_PORT_ID_T_
+
+#ifndef PORT_BITWIDTH
+#error "PORT_BITWIDTH must be defined before including v1model_sai.p4"
+#endif
+typedef bit<PORT_BITWIDTH> port_id_t;
+
+#endif  // _V1MODEL_SAI_PORT_ID_T_
+
+#endif  // FOURWARD

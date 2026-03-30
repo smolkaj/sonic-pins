@@ -47,6 +47,8 @@
 #include "p4_symbolic/packet_synthesizer/packet_synthesizer.pb.h"
 #include "packetlib/packetlib.h"
 #include "packetlib/packetlib.pb.h"
+#include "sai_p4/instantiations/google/instantiations.h"
+#include "sai_p4/instantiations/google/sai_nonstandard_platforms.h"
 #include "sai_p4/instantiations/google/test_tools/test_entries.h"
 #include "tools/cpp/runfiles/runfiles.h"
 
@@ -55,6 +57,37 @@ namespace {
 
 using ::bazel::tools::cpp::runfiles::Runfiles;
 using ::gutil::ParseProtoOrDie;
+
+// Returns P4RT port IDs "first" through "last" (inclusive).
+absl::StatusOr<std::vector<pins_test::P4rtPortId>> MakePorts(int first,
+                                                              int last) {
+  std::vector<pins_test::P4rtPortId> ports;
+  for (int i = first; i <= last; ++i) {
+    ASSIGN_OR_RETURN(pins_test::P4rtPortId port,
+                     pins_test::P4rtPortId::MakeFromP4rtEncoding(
+                         absl::StrCat(i)));
+    ports.push_back(port);
+  }
+  return ports;
+}
+
+// Identity port map: port "i" on SUT maps to port "i" on control switch.
+absl::StatusOr<MirrorTestbedP4rtPortIdMap> MakeIdentityPortMap(int first,
+                                                                int last) {
+  ASSIGN_OR_RETURN(std::vector<pins_test::P4rtPortId> ports,
+                   MakePorts(first, last));
+  absl::flat_hash_map<pins_test::P4rtPortId, pins_test::P4rtPortId> map;
+  for (const pins_test::P4rtPortId& port : ports) {
+    map[port] = port;
+  }
+  return MirrorTestbedP4rtPortIdMap::CreateFromSutToControlSwitchPortMap(map);
+}
+
+p4::v1::ForwardingPipelineConfig LoadP4SymbolicConfig() {
+  return sai::GetNonstandardForwardingPipelineConfig(
+      sai::Instantiation::kMiddleblock,
+      sai::NonstandardPlatform::kP4Symbolic);
+}
 
 p4::v1::ForwardingPipelineConfig LoadFourwardConfig() {
   std::string error;
@@ -68,6 +101,35 @@ p4::v1::ForwardingPipelineConfig LoadFourwardConfig() {
   return config;
 }
 
+// Loads the fourward pipeline on both testbed switches and installs basic
+// forwarding entries on the SUT. Sessions are scoped so they close before
+// ValidateDataplane opens its own (4ward supports one StreamChannel at a time).
+void LoadPipelineAndInstallEntries(
+    FourwardPinsMirrorTestbed& testbed,
+    const p4::v1::ForwardingPipelineConfig& config) {
+  ASSERT_OK_AND_ASSIGN(
+      std::unique_ptr<p4_runtime::P4RuntimeSession> sut_session,
+      p4_runtime::P4RuntimeSession::Create(testbed.Sut()));
+  ASSERT_OK(p4_runtime::SetMetadataAndSetForwardingPipelineConfig(
+      sut_session.get(),
+      p4::v1::SetForwardingPipelineConfigRequest::RECONCILE_AND_COMMIT,
+      config));
+  ASSERT_OK(sai::EntryBuilder()
+                .AddDisableVlanChecksEntry()
+                .AddDisableIngressVlanChecksEntry()
+                .AddDisableEgressVlanChecksEntry()
+                .AddEntriesForwardingIpPacketsToGivenPort("1")
+                .InstallDedupedEntities(*sut_session));
+
+  ASSERT_OK_AND_ASSIGN(
+      std::unique_ptr<p4_runtime::P4RuntimeSession> control_session,
+      p4_runtime::P4RuntimeSession::Create(testbed.ControlSwitch()));
+  ASSERT_OK(p4_runtime::SetMetadataAndSetForwardingPipelineConfig(
+      control_session.get(),
+      p4::v1::SetForwardingPipelineConfigRequest::RECONCILE_AND_COMMIT,
+      config));
+}
+
 // Serializes a packetlib textproto into raw bytes, padding and computing
 // checksums.
 std::string SerializeTestPacket(absl::string_view textproto) {
@@ -79,18 +141,38 @@ std::string SerializeTestPacket(absl::string_view textproto) {
   return *serialized;
 }
 
-TEST(PortablePinsBackendTest, SynthesizePacketsReturnsUnimplemented) {
+TEST(PortablePinsBackendTest, SynthesizePacketsProducesPackets) {
   p4::v1::ForwardingPipelineConfig fourward_config = LoadFourwardConfig();
   std::unique_ptr<DataplaneValidationBackend> backend =
       CreatePortablePinsBackend(fourward_config);
 
-  pdpi::IrP4Info ir_p4info;
-  pdpi::IrEntities ir_entities;
-  p4::v1::ForwardingPipelineConfig p4_symbolic_config;
-  EXPECT_THAT(backend->SynthesizePackets(ir_p4info, ir_entities,
-                                         p4_symbolic_config, {}, nullptr,
-                                         std::nullopt),
-              gutil::StatusIs(absl::StatusCode::kUnimplemented));
+  p4::v1::ForwardingPipelineConfig p4_symbolic_config =
+      LoadP4SymbolicConfig();
+
+  ASSERT_OK_AND_ASSIGN(pdpi::IrP4Info ir_p4info,
+                       pdpi::CreateIrP4Info(fourward_config.p4info()));
+
+  ASSERT_OK_AND_ASSIGN(
+      pdpi::IrEntities ir_entities,
+      sai::EntryBuilder()
+          .AddDisableVlanChecksEntry()
+          .AddEntriesForwardingIpPacketsToGivenPort("1")
+          .GetDedupedIrEntities(ir_p4info));
+
+  ASSERT_OK_AND_ASSIGN(std::vector<pins_test::P4rtPortId> ports,
+                       MakePorts(1, 8));
+
+  ASSERT_OK_AND_ASSIGN(
+      PacketSynthesisResult result,
+      backend->SynthesizePackets(ir_p4info, ir_entities, p4_symbolic_config,
+                                 ports, /*write_stats=*/nullptr,
+                                 /*coverage_goals_override=*/std::nullopt));
+  ASSERT_FALSE(result.synthesized_packets.empty());
+  for (const p4_symbolic::packet_synthesizer::SynthesizedPacket& packet :
+       result.synthesized_packets) {
+    EXPECT_FALSE(packet.packet().empty())
+        << "Synthesized packet has empty payload";
+  }
 }
 
 TEST(PortablePinsBackendTest, GetEntitiesToPuntAllPacketsSucceeds) {
@@ -251,32 +333,7 @@ TEST(PortablePinsBackendTest,
       CreatePortablePinsBackend(fourward_config);
   DataplaneValidator validator(std::move(backend));
 
-  // Load pipeline on both switches and install forwarding entries on SUT.
-  // ValidateDataplane opens its own P4RT sessions, so close ours before
-  // calling it (4ward supports only one StreamChannel at a time).
-  {
-    ASSERT_OK_AND_ASSIGN(
-        std::unique_ptr<p4_runtime::P4RuntimeSession> sut_session,
-        p4_runtime::P4RuntimeSession::Create(testbed->Sut()));
-    ASSERT_OK(p4_runtime::SetMetadataAndSetForwardingPipelineConfig(
-        sut_session.get(),
-        p4::v1::SetForwardingPipelineConfigRequest::RECONCILE_AND_COMMIT,
-        fourward_config));
-    ASSERT_OK(sai::EntryBuilder()
-                  .AddDisableVlanChecksEntry()
-                  .AddDisableIngressVlanChecksEntry()
-                  .AddDisableEgressVlanChecksEntry()
-                  .AddEntriesForwardingIpPacketsToGivenPort("1")
-                  .InstallDedupedEntities(*sut_session));
-
-    ASSERT_OK_AND_ASSIGN(
-        std::unique_ptr<p4_runtime::P4RuntimeSession> control_session,
-        p4_runtime::P4RuntimeSession::Create(testbed->ControlSwitch()));
-    ASSERT_OK(p4_runtime::SetMetadataAndSetForwardingPipelineConfig(
-        control_session.get(),
-        p4::v1::SetForwardingPipelineConfigRequest::RECONCILE_AND_COMMIT,
-        fourward_config));
-  }
+  LoadPipelineAndInstallEntries(*testbed, fourward_config);
 
   // Build a user-provided test vector: send an IPv4 packet, expect it
   // forwarded to port "1".
@@ -328,19 +385,8 @@ TEST(PortablePinsBackendTest,
   // output -- DVaaS checks that the SUT's output matches 4ward's prediction.
   test_vector.add_acceptable_outputs();
 
-  // Identity port map: both switches have ports 1-8.
-  absl::flat_hash_map<pins_test::P4rtPortId, pins_test::P4rtPortId>
-      sut_to_control;
-  for (int i = 1; i <= 8; ++i) {
-    absl::StatusOr<pins_test::P4rtPortId> port =
-        pins_test::P4rtPortId::MakeFromP4rtEncoding(absl::StrCat(i));
-    ASSERT_OK(port);
-    sut_to_control[*port] = *port;
-  }
-  ASSERT_OK_AND_ASSIGN(
-      MirrorTestbedP4rtPortIdMap port_map,
-      MirrorTestbedP4rtPortIdMap::CreateFromSutToControlSwitchPortMap(
-          sut_to_control));
+  ASSERT_OK_AND_ASSIGN(MirrorTestbedP4rtPortIdMap port_map,
+                       MakeIdentityPortMap(1, 8));
 
   DataplaneValidationParams params;
   P4Specification spec;
@@ -356,11 +402,15 @@ TEST(PortablePinsBackendTest,
   EXPECT_OK(result.HasSuccessRateOfAtLeast(1.0));
 }
 
-// The ultimate goal: DVaaS synthesizes test packets automatically via
-// p4-symbolic and validates them against 4ward predictions.
+// Full E2E: p4-symbolic synthesizes packets, 4ward predicts outputs, DVaaS
+// validates the SUT. DISABLED pending E2E wiring validation — the unit-level
+// SynthesizePacketsProducesPackets test covers the synthesis path.
 TEST(PortablePinsBackendTest,
      DISABLED_ValidateDataplaneWithSynthesizedTestVectors) {
   p4::v1::ForwardingPipelineConfig fourward_config = LoadFourwardConfig();
+
+  p4::v1::ForwardingPipelineConfig p4_symbolic_config =
+      LoadP4SymbolicConfig();
 
   ASSERT_OK_AND_ASSIGN(std::unique_ptr<FourwardPinsMirrorTestbed> testbed,
                        FourwardPinsMirrorTestbed::Create());
@@ -368,28 +418,19 @@ TEST(PortablePinsBackendTest,
       CreatePortablePinsBackend(fourward_config);
   DataplaneValidator validator(std::move(backend));
 
-  // Load pipeline and install entries on the SUT.
-  ASSERT_OK_AND_ASSIGN(
-      std::unique_ptr<p4_runtime::P4RuntimeSession> sut_session,
-      p4_runtime::P4RuntimeSession::Create(testbed->Sut()));
-  ASSERT_OK(p4_runtime::SetMetadataAndSetForwardingPipelineConfig(
-      sut_session.get(),
-      p4::v1::SetForwardingPipelineConfigRequest::RECONCILE_AND_COMMIT,
-      fourward_config));
-  ASSERT_OK(sai::EntryBuilder()
-                .AddDisableVlanChecksEntry()
-                .AddDisableIngressVlanChecksEntry()
-                .AddDisableEgressVlanChecksEntry()
-                .AddEntriesForwardingIpPacketsToGivenPort("1")
-                .InstallDedupedEntities(*sut_session));
+  LoadPipelineAndInstallEntries(*testbed, fourward_config);
+
+  ASSERT_OK_AND_ASSIGN(MirrorTestbedP4rtPortIdMap port_map,
+                       MakeIdentityPortMap(1, 8));
 
   // No packet_test_vector_override — DVaaS synthesizes packets automatically.
   DataplaneValidationParams params;
   P4Specification spec;
   spec.fourward_config = fourward_config;
-  spec.p4_symbolic_config = fourward_config;
+  spec.p4_symbolic_config = p4_symbolic_config;
   spec.bmv2_config = fourward_config;
   params.specification_override = spec;
+  params.mirror_testbed_port_map_override = port_map;
 
   ASSERT_OK_AND_ASSIGN(ValidationResult result,
                        validator.ValidateDataplane(*testbed, params));

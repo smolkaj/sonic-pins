@@ -19,8 +19,9 @@ name what you're trading away, and name why.
 ## Repository map
 
 ```
-dvaas/portable_pins_backend/          Open-source DVaaS backend for PINS/SAI P4 switches.
+dvaas/portable_pins_backend/          Open-source DVaaS backend using 4ward as reference model.
 fourward/                             4ward integration (subprocess, oracle, testbed, bridge).
+fourward/designs/                     Design documents (architecture decisions, feature proposals).
 fourward/README.md                    Architecture overview and component docs.
 ```
 

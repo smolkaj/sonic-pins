@@ -16,6 +16,27 @@ shortcut is a legitimate engineering choice; a shortcut you took because you
 never considered the alternative is just a blind spot. Name the north star,
 name what you're trading away, and name why.
 
+## Test-driven development
+
+**Write the test first.** The test is the spec — it defines the behavior
+you want before you write the code. If you can't write a clear test, you
+don't understand the problem yet. A failing test is the starting point for
+every change, not an afterthought.
+
+## Key design invariants
+
+1. **4ward is a subprocess.** All communication happens over gRPC. The C++
+   code in this directory never links against 4ward's Kotlin code — it only
+   depends on proto definitions and gRPC stubs.
+
+2. **The `dvaas` namespace.** All code in `fourward/` lives in `namespace
+   dvaas`, not `namespace fourward`. The `fourward` namespace belongs to the
+   4ward repo.
+
+3. **The integration is opt-in.** When `P4Specification.fourward_config` is
+   present, DVaaS uses 4ward. Otherwise, the existing BMv2 path works
+   unchanged.
+
 ## Repository map
 
 ```
@@ -26,20 +47,6 @@ fourward/README.md                    Architecture overview and component docs.
 ```
 
 Unit tests live alongside the source: `foo_test.cc` next to `foo.{h,cc}`.
-
-## Build and test
-
-```sh
-bazel build //fourward/...
-bazel test //fourward/...
-```
-
-## Test-driven development
-
-**Write the test first.** The test is the spec — it defines the behavior
-you want before you write the code. If you can't write a clear test, you
-don't understand the problem yet. A failing test is the starting point for
-every change, not an afterthought.
 
 ## Code conventions
 
@@ -83,7 +90,12 @@ every change, not an afterthought.
    `trace_conversion_test.expected`. Update via:
    `bazel run //fourward:trace_conversion_golden_test -- --update`.
 
-## Debugging
+## Build, test, and debug
+
+```sh
+bazel build //fourward/...
+bazel test //fourward/...
+```
 
 When a test crashes, **observe, don't guess**:
 
@@ -95,30 +107,15 @@ bazel run -c dbg //path/to:test -- --gtest_filter="*FailingTest*"
 bazel run -c dbg //path/to:test --run_under=gdb -- --gtest_filter="*FailingTest*"
 ```
 
-## Key design invariants
+## Commits and pull requests
 
-1. **4ward is a subprocess.** All communication happens over gRPC. The C++
-   code in this directory never links against 4ward's Kotlin code — it only
-   depends on proto definitions and gRPC stubs.
-
-2. **The `dvaas` namespace.** All code in `fourward/` lives in `namespace
-   dvaas`, not `namespace fourward`. The `fourward` namespace belongs to the
-   4ward repo.
-
-3. **The integration is opt-in.** When `P4Specification.fourward_config` is
-   present, DVaaS uses 4ward. Otherwise, the existing BMv2 path works
-   unchanged.
-
-## Commit messages
-
-Focus on *why* the change is being made. Don't restate what the diff shows.
-
-## Pull requests
+Focus commit messages on *why* the change is being made. Don't restate what
+the diff shows.
 
 Open PRs in draft mode (`gh pr create --draft`). Rebase onto `fork/main`
 before submitting. Keep descriptions concise — lead with the win.
 
-## Before submitting a PR
+Before submitting:
 
 - Run `bazel test //fourward/...`. Fix all failures.
 - Add unit tests for new behavior.

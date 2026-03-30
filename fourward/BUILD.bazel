@@ -223,10 +223,12 @@ cc_test(
 )
 
 cc_library(
-    name = "packet_bridge",
-    srcs = ["packet_bridge.cc"],
-    hdrs = ["packet_bridge.h"],
+    name = "fourward_pins_mirror_testbed",
+    testonly = True,
+    srcs = ["fourward_pins_mirror_testbed.cc"],
+    hdrs = ["fourward_pins_mirror_testbed.h"],
     deps = [
+        ":fourward_pins_switch",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
@@ -241,38 +243,6 @@ cc_library(
         "@openconfig_gnmi//proto/gnmi:gnmi_cc_grpc_proto",
         "@openconfig_gnmi//proto/gnmi:gnmi_cc_proto",
         "@re2//:re2",
-    ],
-)
-
-cc_test(
-    name = "packet_bridge_test",
-    srcs = ["packet_bridge_test.cc"],
-    data = [
-        "@fourward//p4runtime:p4runtime_server",
-    ],
-    deps = [
-        ":fake_gnmi_service",
-        ":fourward_server",
-        ":packet_bridge",
-        "@googletest//:gtest_main",
-        "@grpc//:grpc++",
-        "@gutil//gutil:status_matchers",
-        "@openconfig_gnmi//proto/gnmi:gnmi_cc_grpc_proto",
-    ],
-)
-
-cc_library(
-    name = "fourward_pins_mirror_testbed",
-    testonly = True,
-    srcs = ["fourward_pins_mirror_testbed.cc"],
-    hdrs = ["fourward_pins_mirror_testbed.h"],
-    deps = [
-        ":fourward_pins_switch",
-        ":packet_bridge",
-        "@abseil-cpp//absl/status:statusor",
-        "@grpc//:grpc++",
-        "@gutil//gutil:status",
-        "@openconfig_gnmi//proto/gnmi:gnmi_cc_grpc_proto",
         "//thinkit:bazel_test_environment",
         "//thinkit:mirror_testbed",
     ],
@@ -280,12 +250,29 @@ cc_library(
 
 cc_test(
     name = "fourward_pins_mirror_testbed_test",
+    size = "large",
     srcs = ["fourward_pins_mirror_testbed_test.cc"],
+    data = [
+        ":sai_middleblock_fourward",
+    ],
     deps = [
         ":fourward_pins_mirror_testbed",
+        "//p4_infra/p4_runtime:p4_runtime_session",
+        "//p4_infra/p4_runtime:p4_runtime_session_extras",
+        "//sai_p4/instantiations/google/test_tools:test_entries",
+        "@bazel_tools//tools/cpp/runfiles",
+        "@fourward//p4runtime:dataplane_cc_grpc",
+        "@fourward//p4runtime:dataplane_cc_proto",
         "@googletest//:gtest_main",
+        "@grpc//:grpc++",
+        "@gutil//gutil:io",
         "@gutil//gutil:status_matchers",
+        "@gutil//gutil:testing",
         "@openconfig_gnmi//proto/gnmi:gnmi_cc_grpc_proto",
+        "@p4_infra//packetlib",
+        "@p4_infra//packetlib:packetlib_cc_proto",
+        "@p4runtime//proto/p4/v1:p4runtime_cc_grpc",
+        "@p4runtime//proto/p4/v1:p4runtime_cc_proto",
     ],
 )
 

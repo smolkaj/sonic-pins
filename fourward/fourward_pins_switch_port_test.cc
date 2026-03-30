@@ -74,7 +74,7 @@ TEST(FourwardPinsSwitchPortTest,
   ASSERT_OK_AND_ASSIGN(FourwardPinsSwitch control,
                         FourwardPinsSwitch::Create(/*device_id=*/2));
 
-  // TODO: Start PacketBridge between them.
+  // TODO: Use FourwardPinsMirrorTestbed (which includes a packet bridge).
   // TODO: Install forwarding on SUT to output on SUT's "Ethernet0".
   // TODO: Inject packet on SUT.
   // TODO: Verify packet arrives on control's "Ethernet0" (dataplane

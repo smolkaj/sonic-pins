@@ -93,7 +93,7 @@ This function is shared by two consumers:
       ├─ sai::CreateV1ModelAuxiliaryEntities(entities, fake_gnmi)
       │   └─ reads fake gNMI → produces VLAN/port entries
       ├─ Install auxiliary entries on both servers
-      └─ Start PacketBridge
+      └─ Start packet bridge
 ```
 
 ## Usage

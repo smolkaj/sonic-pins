@@ -13,51 +13,92 @@
 // limitations under the License.
 
 // thinkit::MirrorTestbed backed by two FourwardPinsSwitch instances (each
-// owning a 4ward P4Runtime server and a fake gNMI server) and a PacketBridge
-// connecting them.
+// owning a 4ward P4Runtime server and a fake gNMI server) and an integrated
+// packet bridge connecting them.
+//
+// The packet bridge emulates back-to-back physical links, routing by gNMI
+// interface name so the two switches can have independent port numbering.
+// When either instance outputs a packet, the bridge resolves the egress port
+// to an interface name via gNMI, then finds the corresponding port on the
+// other instance and injects the packet there.
+//
+//   DVaaS -> control_switch PacketOut -> bridge -> SUT ingress
+//   SUT egress -> bridge -> control_switch ingress -> punt-all -> PacketIn -> DVaaS
 
 #ifndef PINS_FOURWARD_FOURWARD_PINS_MIRROR_TESTBED_H_
 #define PINS_FOURWARD_FOURWARD_PINS_MIRROR_TESTBED_H_
 
+#include <atomic>
 #include <cstdint>
 #include <memory>
+#include <mutex>
+#include <string>
+#include <thread>
 #include <utility>
 
 #include "absl/status/statusor.h"
 #include "fourward/fourward_pins_switch.h"
-#include "fourward/packet_bridge.h"
+#include "github.com/openconfig/gnmi/proto/gnmi/gnmi.grpc.pb.h"
+#include "grpcpp/client_context.h"
 #include "thinkit/bazel_test_environment.h"
 #include "thinkit/mirror_testbed.h"
 
 namespace dvaas {
 
 // A thinkit::MirrorTestbed with two FourwardPinsSwitch instances and a
-// PacketBridge connecting them.
+// packet bridge connecting them.
+//
+// The bridge starts automatically on creation and stops when the testbed is
+// destroyed.
 class FourwardPinsMirrorTestbed : public thinkit::MirrorTestbed {
  public:
-  // Creates a testbed with two FourwardPinsSwitch instances (each including a
-  // fake gNMI server) and a PacketBridge between them.
+  // Creates a fully wired testbed: two FourwardPinsSwitch instances and a
+  // running packet bridge between them.
   static absl::StatusOr<std::unique_ptr<FourwardPinsMirrorTestbed>> Create(
       uint32_t sut_device_id = 1, uint32_t control_device_id = 2);
+
+  ~FourwardPinsMirrorTestbed();
+
+  FourwardPinsMirrorTestbed(const FourwardPinsMirrorTestbed&) = delete;
+  FourwardPinsMirrorTestbed& operator=(const FourwardPinsMirrorTestbed&) =
+      delete;
 
   thinkit::Switch& Sut() override { return sut_; }
   thinkit::Switch& ControlSwitch() override { return control_; }
   thinkit::TestEnvironment& Environment() override { return env_; }
 
-  PacketBridge& Bridge() { return *bridge_; }
-
  private:
-  FourwardPinsMirrorTestbed(FourwardPinsSwitch sut, FourwardPinsSwitch control,
-                            std::unique_ptr<PacketBridge> bridge)
+  FourwardPinsMirrorTestbed(FourwardPinsSwitch sut, FourwardPinsSwitch control)
       : sut_(std::move(sut)),
         control_(std::move(control)),
-        bridge_(std::move(bridge)),
         env_(/*mask_known_failures=*/false) {}
+
+  absl::Status StartBridge();
+  void StopBridge();
+
+  // Subscribes to SubscribeResults on `from_address` and forwards each output
+  // packet to `to_address`, routing by gNMI interface name. Stores its
+  // subscribe context in `*subscribe_ctx` so StopBridge() can cancel it.
+  // Notifies `ready` once the subscription is active.
+  void ForwardPackets(const std::string& from_address,
+                      const std::string& to_address,
+                      gnmi::gNMI::StubInterface& from_gnmi,
+                      gnmi::gNMI::StubInterface& to_gnmi,
+                      const std::string& direction_label,
+                      grpc::ClientContext** subscribe_ctx,
+                      absl::Notification& ready);
 
   FourwardPinsSwitch sut_;
   FourwardPinsSwitch control_;
-  std::unique_ptr<PacketBridge> bridge_;
   thinkit::BazelTestEnvironment env_;
+
+  // Packet bridge state.
+  std::atomic<bool> bridge_running_{false};
+  std::thread sut_to_control_thread_;
+  std::thread control_to_sut_thread_;
+  std::mutex bridge_contexts_mu_;
+  grpc::ClientContext* sut_subscribe_ctx_ = nullptr;
+  grpc::ClientContext* control_subscribe_ctx_ = nullptr;
 };
 
 }  // namespace dvaas

@@ -47,21 +47,18 @@ Minimal in-process gNMI server modeling configurable Ethernet interfaces with
 P4RT port IDs. DVaaS uses gNMI to discover switch ports and check that they
 are up. This fake serves just enough to satisfy those queries.
 
-### PacketBridge (`packet_bridge.h`)
-
-Emulates back-to-back physical links between two 4ward instances. Connects
-ports by gNMI interface name — SUT's "Ethernet0" connects to control switch's
-"Ethernet0", even if they have different P4RT IDs or dataplane ports. Reads
-gNMI per packet to resolve the mapping. See
-[designs/port_identity.md](designs/port_identity.md) for the full design.
-
 ### FourwardPinsMirrorTestbed (`fourward_pins_mirror_testbed.h`)
 
-`thinkit::MirrorTestbed` backed by two 4ward instances with fake gNMI and a
-packet bridge. The development vehicle — exercises all integration code without
-a real switch.
+`thinkit::MirrorTestbed` backed by two 4ward instances with fake gNMI and an
+integrated packet bridge. The development vehicle — exercises all integration
+code without a real switch.
 
-`Create()` starts two `FourwardPinsSwitch` instances and a `PacketBridge`.
+The packet bridge emulates back-to-back physical links, routing by gNMI
+interface name — SUT's "Ethernet0" connects to control switch's "Ethernet0",
+even if they have different P4RT IDs or dataplane ports. See
+[designs/port_identity.md](designs/port_identity.md) for the full design.
+
+`Create()` starts two `FourwardPinsSwitch` instances and the packet bridge.
 Auxiliary entries are reconciled transparently via the pre-packet hook
 (see [designs/pins_switch_auxiliary_entries.md](designs/pins_switch_auxiliary_entries.md)).
 DVaaS sees a standard `thinkit::MirrorTestbed` — it doesn't know it's

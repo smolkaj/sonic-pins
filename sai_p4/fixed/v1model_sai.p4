@@ -1,11 +1,11 @@
 // v1model wrapper for SAI P4.
 //
-// When compiled with -DFOURWARD (p4c-4ward), port fields use `type` (newtype)
-// with @p4runtime_translation, giving the 4ward simulator typed string ports.
-// For all other targets (BMv2, p4-symbolic, p4testgen), this file includes
-// stock <v1model.p4> unchanged and defines port_id_t as a plain typedef.
+// When compiled with -DPLATFORM_4WARD (p4c-4ward), port fields use `type`
+// (newtype) with @p4runtime_translation, giving the 4ward simulator typed
+// string ports. For all other targets (BMv2, p4-symbolic, p4testgen), this
+// file just includes stock <v1model.p4>.
 
-#ifdef FOURWARD
+#ifdef PLATFORM_4WARD
 
 // -- 4ward path: full v1model fork with typed ports -------------------------
 
@@ -67,10 +67,12 @@ match_kind {
 
 const bit<32> __v1model_version = V1MODEL_VERSION;
 
-#ifndef PORT_BITWIDTH
-#error "PORT_BITWIDTH must be defined before including v1model_sai.p4"
-#endif
-// Typed port with @p4runtime_translation: gives 4ward string port names.
+// Include bitwidths.p4 to get PORT_BITWIDTH (set per platform in bitwidths.p4).
+#include "../../instantiations/google/bitwidths.p4"
+// port_id_t must be defined here (before standard_metadata_t) rather than
+// in metadata.p4, because v1model_sai.p4 is included first. metadata.p4
+// guards its definition with #ifndef PLATFORM_4WARD to avoid duplicates.
+#include "../../instantiations/google/bitwidths.p4"
 @p4runtime_translation_mappings({
   {"CPU_PORT", 510},
   {"DROP_PORT", 511},
@@ -779,20 +781,10 @@ package V1Switch<H, M>(Parser<H, M> p,
 
 #endif  /* _V1_MODEL_P4_ */
 
-#else  // !FOURWARD
+#else  // !PLATFORM_4WARD
 
-// -- Standard path: stock v1model + port_id_t typedef -----------------------
+// -- Standard path: stock v1model, port_id_t from metadata.p4 ---------------
 
 #include <v1model.p4>
 
-#ifndef _V1MODEL_SAI_PORT_ID_T_
-#define _V1MODEL_SAI_PORT_ID_T_
-
-#ifndef PORT_BITWIDTH
-#error "PORT_BITWIDTH must be defined before including v1model_sai.p4"
-#endif
-typedef bit<PORT_BITWIDTH> port_id_t;
-
-#endif  // _V1MODEL_SAI_PORT_ID_T_
-
-#endif  // FOURWARD
+#endif  // PLATFORM_4WARD

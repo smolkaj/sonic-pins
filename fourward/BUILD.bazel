@@ -118,17 +118,20 @@ cc_library(
     ],
 )
 
-# The v1model_sai.p4 include provides typed ports with @p4runtime_translation;
-# its -I directory shadows stock v1model.p4.
+# The fourward/ shim shadows stock <v1model.p4> with v1model_sai.p4, giving
+# 4ward typed ports with @p4runtime_translation on standard_metadata.
 fourward_pipeline(
     name = "sai_middleblock_fourward",
     src = "//sai_p4/instantiations/google:middleblock.p4",
     out = "sai_middleblock_fourward.binpb",
     out_format = "p4runtime",
-    defines = ["FOURWARD"],
-    extra_srcs = ["//sai_p4:sai_p4_srcs"],
-    includes = [
+    defines = ["PLATFORM_4WARD"],
+    extra_srcs = [
+        "//sai_p4:sai_p4_srcs",
         "//sai_p4/fixed:v1model_sai.p4",
+    ],
+    includes = [
+        "//sai_p4/fixed/fourward:v1model.p4",
         "//sai_p4/instantiations/google:ids.h",
     ],
 )

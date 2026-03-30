@@ -168,11 +168,16 @@ TEST(PortablePinsBackendTest, SynthesizePacketsProducesPackets) {
                                  ports, /*write_stats=*/nullptr,
                                  /*coverage_goals_override=*/std::nullopt));
   ASSERT_FALSE(result.synthesized_packets.empty());
+  int forwarded = 0;
   for (const p4_symbolic::packet_synthesizer::SynthesizedPacket& packet :
        result.synthesized_packets) {
     EXPECT_FALSE(packet.packet().empty())
         << "Synthesized packet has empty payload";
+    if (!packet.drop_expected()) ++forwarded;
   }
+  EXPECT_GT(forwarded, 0)
+      << "Expected at least one forwarded packet — forwarding entries are "
+         "installed.";
 }
 
 TEST(PortablePinsBackendTest, GetEntitiesToPuntAllPacketsSucceeds) {

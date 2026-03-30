@@ -1,7 +1,7 @@
 #ifndef SAI_ROUTING_P4_
 #define SAI_ROUTING_P4_
 
-#include "v1model_sai.p4"
+#include <v1model.p4>
 #include "common_actions.p4"
 #include "drop_martians.p4"
 #include "headers.p4"
@@ -367,7 +367,12 @@ control routing_resolution(in headers_t headers,
                                           @id(2) @format(MAC_ADDRESS)
                                           ethernet_addr_t src_mac,
                                           @id(3) vlan_id_t vlan_id) {
+#ifdef PLATFORM_4WARD
     standard_metadata.egress_spec = port;
+#else
+    // Cast: v1model uses bit<9>, not port_id_t.
+    standard_metadata.egress_spec = (bit<PORT_BITWIDTH>)port;
+#endif
     local_metadata.packet_rewrites.src_mac = src_mac;
     local_metadata.packet_rewrites.vlan_id = vlan_id;
   }
@@ -623,12 +628,23 @@ control routing_resolution(in headers_t headers,
     }
    
     if (local_metadata.redirect_port_valid) {
+#ifdef PLATFORM_4WARD
+      standard_metadata.egress_spec = (port_id_t) local_metadata.redirect_port;
+#else
       standard_metadata.egress_spec = local_metadata.redirect_port;
+#endif
     }
 
     // Add metadata that is relevant for punted packets.
+#ifdef PLATFORM_4WARD
+    local_metadata.packet_in_target_egress_port =
+        (bit<PORT_BITWIDTH>) standard_metadata.egress_spec;
+    local_metadata.packet_in_ingress_port =
+        (bit<PORT_BITWIDTH>) standard_metadata.ingress_port;
+#else
     local_metadata.packet_in_target_egress_port = standard_metadata.egress_spec;
     local_metadata.packet_in_ingress_port = standard_metadata.ingress_port;
+#endif
 
     // Act on ACL drop after routing resolution. That way ACL drop has higher
     // precedence than L3 routing or ACL ingress redirect actions, even if the

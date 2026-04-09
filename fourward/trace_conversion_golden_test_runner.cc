@@ -14,7 +14,7 @@
 #include "fourward/trace_conversion.h"
 #include "google/protobuf/text_format.h"
 #include "dvaas/packet_trace.pb.h"
-#include "simulator.pb.h"
+#include "simulator/simulator.pb.h"
 
 namespace dvaas {
 namespace {

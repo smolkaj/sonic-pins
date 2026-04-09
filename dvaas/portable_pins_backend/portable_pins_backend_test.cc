@@ -409,7 +409,9 @@ TEST(PortablePinsBackendTest, ValidateDataplaneWithSynthesizedTestVectors) {
 
   ASSERT_OK_AND_ASSIGN(ValidationResult result,
                        validator.ValidateDataplane(*testbed, params));
-  // TODO: Investigate failing test vectors and raise to 1.0.
+  // TODO: 54% (6/11). Bridge forwards 0 packets: control switch outputs
+  // only on CPU port (510) via punt-all, no real-port outputs for the bridge
+  // to forward. Needs investigation into PacketOut + punt-all interaction.
   EXPECT_OK(result.HasSuccessRateOfAtLeast(0.52));
 }
 

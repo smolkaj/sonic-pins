@@ -4,7 +4,7 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "gutil/proto_matchers.h"
-#include "simulator.pb.h"
+#include "simulator/simulator.pb.h"
 
 namespace dvaas {
 namespace {

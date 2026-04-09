@@ -5,7 +5,7 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "gutil/testing.h"
-#include "simulator.pb.h"
+#include "simulator/simulator.pb.h"
 
 namespace dvaas {
 namespace {

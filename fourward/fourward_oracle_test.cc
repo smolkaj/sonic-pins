@@ -8,7 +8,7 @@
 #include "gutil/io.h"
 #include "gutil/status_matchers.h"
 #include "p4/v1/p4runtime.pb.h"
-#include "simulator.pb.h"
+#include "simulator/simulator.pb.h"
 #include "tools/cpp/runfiles/runfiles.h"
 
 namespace dvaas {

@@ -9,7 +9,7 @@
 
 #include <string>
 
-#include "simulator.pb.h"
+#include "simulator/simulator.pb.h"
 
 namespace dvaas {
 

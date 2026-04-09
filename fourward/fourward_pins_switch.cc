@@ -8,8 +8,8 @@
 
 #include "absl/log/log.h"
 #include "absl/status/statusor.h"
-#include "dataplane.grpc.pb.h"
-#include "dataplane.pb.h"
+#include "p4runtime/dataplane.grpc.pb.h"
+#include "p4runtime/dataplane.pb.h"
 #include "fourward/fake_gnmi_service.h"
 #include "fourward/fourward_server.h"
 #include "github.com/openconfig/gnmi/proto/gnmi/gnmi.grpc.pb.h"

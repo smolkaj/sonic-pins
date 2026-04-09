@@ -15,7 +15,7 @@
 #include <vector>
 
 #include "absl/status/statusor.h"
-#include "dataplane.grpc.pb.h"
+#include "p4runtime/dataplane.grpc.pb.h"
 #include "grpcpp/channel.h"
 #include "fourward/fake_gnmi_service.h"
 #include "fourward/fourward_server.h"

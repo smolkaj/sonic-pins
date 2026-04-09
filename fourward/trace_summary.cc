@@ -5,7 +5,7 @@
 
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_join.h"
-#include "simulator.pb.h"
+#include "simulator/simulator.pb.h"
 
 namespace dvaas {
 namespace {

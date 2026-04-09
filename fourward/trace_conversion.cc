@@ -3,7 +3,7 @@
 #include <string>
 
 #include "dvaas/packet_trace.pb.h"
-#include "simulator.pb.h"
+#include "simulator/simulator.pb.h"
 
 namespace dvaas {
 namespace {
